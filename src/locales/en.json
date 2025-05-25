@@ -91,6 +91,8 @@
 	},
 	"appTab": {
 		"songs": "Songs",
+		"albums": "Albums",
+		"artists": "Artists",
 		"search": "Search",
 		"radio": "Radio",
 		"favorites": "Favorites",
@@ -106,12 +108,15 @@
 		"inRadio": "Find in Radio",
 		"inSearch": "Find Songs or Artists Online",
 		"inSongs": "Find in Songs",
+		"inAlbums": "Find in Albums",
+		"inArtists": "Find in Artists",
 		"inFavorites": "Find in Favorites",
 		"noResults": "No results found",
 		"noMoreResults": "No more results",
 		"cancel": "Cancel",
 		"inPlaylist": "Find in Playlist",
 		"songs": "Songs",
+		"albums": "Albums",
 		"artists": "Artists"
 	},
 	"playButton": {

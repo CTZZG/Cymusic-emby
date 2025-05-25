@@ -13,7 +13,7 @@ const AlbumsScreenLayout = () => {
 					name="index"
 					options={{
 						...StackScreenWithSearchBar,
-						headerTitle: i18n.t('tabs.albums'),
+						headerTitle: i18n.t('appTab.albums'),
 						headerStyle: {
 							backgroundColor: colors.background,
 						},

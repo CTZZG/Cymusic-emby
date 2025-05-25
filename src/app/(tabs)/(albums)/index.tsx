@@ -1,9 +1,9 @@
 import { screenPadding } from '@/constants/tokens'
-import { getEmbyConfig, getEmbyToken, httpEmby } from '@/helpers/embyApi'
 import { useNavigationSearch } from '@/hooks/useNavigationSearch'
+import { useAlbums, useAlbumsHasMore, useAlbumsLoading } from '@/store/albums'
 import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
 
 interface Album {
@@ -23,80 +23,25 @@ const AlbumsScreen = () => {
 		},
 	})
 
-	const [albums, setAlbums] = useState<Album[]>([])
-	const [isLoading, setIsLoading] = useState(false)
-	const [page, setPage] = useState(1)
-	const [hasMore, setHasMore] = useState(true)
+	const { albums, fetchAlbums } = useAlbums()
+	const isLoading = useAlbumsLoading()
+	const hasMore = useAlbumsHasMore()
 
 	const filteredAlbums = useMemo(() => {
 		if (!search) return albums
-		return albums.filter(album =>
+		return albums.filter((album: any) =>
 			album.title.toLowerCase().includes(search.toLowerCase()) ||
 			album.artist.toLowerCase().includes(search.toLowerCase())
 		)
 	}, [search, albums])
 
-	const fetchAlbums = async (pageNum: number = 1, isRefresh: boolean = false) => {
-		if (isLoading) return
-
-		setIsLoading(true)
-		try {
-			const tokenInfo = await getEmbyToken()
-			if (tokenInfo) {
-				// 使用Emby API获取专辑列表
-				const params = {
-					IncludeItemTypes: 'MusicAlbum',
-					Recursive: true,
-					UserId: tokenInfo.userId,
-					StartIndex: (pageNum - 1) * 50,
-					Limit: 50,
-					Fields: 'PrimaryImageAspectRatio,AlbumArtist,ChildCount,ImageTags',
-					SortBy: 'SortName',
-					SortOrder: 'Ascending'
-				}
-
-				const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
-				if (result && result.data && result.data.Items) {
-					const newAlbums = result.data.Items.map((album: any) => ({
-						id: album.Id,
-						title: album.Name || 'Unknown Album',
-						artist: album.AlbumArtist || 'Unknown Artist',
-						artwork: album.ImageTags?.Primary
-							? `${getEmbyConfig()?.url}/Items/${album.Id}/Images/Primary?maxWidth=300&maxHeight=300&tag=${album.ImageTags.Primary}&format=jpg&quality=90`
-							: 'https://via.placeholder.com/300',
-						description: album.Overview || '',
-						worksNum: album.ChildCount || 0
-					}))
-
-					if (isRefresh) {
-						setAlbums(newAlbums)
-					} else {
-						setAlbums(prev => [...prev, ...newAlbums])
-					}
-
-					setHasMore(result.data.Items.length === 50)
-					setPage(pageNum + 1)
-				}
-			} else {
-				// Emby未配置时显示提示
-				if (isRefresh) {
-					setAlbums([])
-				}
-			}
-		} catch (error) {
-			console.error('Failed to fetch albums:', error)
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
 	useEffect(() => {
-		fetchAlbums(1, true)
+		fetchAlbums(true) // 初始加载
 	}, [])
 
 	const handleLoadMore = () => {
 		if (hasMore && !isLoading) {
-			fetchAlbums(page)
+			fetchAlbums(false) // 加载更多
 		}
 	}
 

@@ -143,7 +143,7 @@ export async function getEmbyToken(forceRefresh: boolean = false): Promise<EmbyT
   const authUrl = `${normalizeUrl(url)}/Users/AuthenticateByName`;
   const headers = {
     'Content-Type': 'application/json',
-    'X-Emby-Authorization': `Emby Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`,
+    'X-Emby-Authorization': `MediaBrowser Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`,
     'User-Agent': getUserAgent()
   };
 
@@ -172,7 +172,7 @@ export async function getEmbyApiAuthHeaders(forceTokenRefresh: boolean = false):
   const tokenInfo = await getEmbyToken(forceTokenRefresh);
   if (!tokenInfo) return null;
 
-  let authHeader = `Emby Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`;
+  let authHeader = `MediaBrowser Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`;
   if (tokenInfo.token) {
     authHeader += `, Token="${tokenInfo.token}"`;
   }
@@ -460,7 +460,7 @@ export async function formatAlbumItem(embyAlbum: any): Promise<any> {
       };
 
       try {
-        const tracksResult = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, tracksParams);
+        const tracksResult = await httpEmby('GET', 'Items', tracksParams);
         if (tracksResult && tracksResult.data && tracksResult.data.Items && tracksResult.data.Items.length > 0) {
           const lastSongRaw = tracksResult.data.Items[0];
           if (lastSongRaw.ImageTags && lastSongRaw.ImageTags.Primary) {
@@ -530,7 +530,7 @@ export async function getEmbyPlaylistTracks(playlistId: string): Promise<any[]> 
     SortOrder: 'Ascending'
   };
 
-  const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params);
+  const result = await httpEmby('GET', 'Items', params);
   if (!result || !result.data || !result.data.Items) return [];
 
   const formattedTracks = await Promise.all(
@@ -636,7 +636,7 @@ export async function getLyricApi(musicItem: any): Promise<{ rawLrc: string } | 
             .join('&');
 
           const headers = {
-            'X-Emby-Authorization': `Emby Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${config.deviceId || 'cymusic'}", Version="${EMBY_APP_VERSION}", Token="${tokenInfo.token}"`,
+            'X-Emby-Authorization': `MediaBrowser Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${config.deviceId || 'cymusic'}", Version="${EMBY_APP_VERSION}", Token="${tokenInfo.token}"`,
             'Accept': 'application/json, text/javascript, */*',
             'User-Agent': getUserAgent()
           };

@@ -13,7 +13,7 @@ const ArtistsScreenLayout = () => {
 					name="index"
 					options={{
 						...StackScreenWithSearchBar,
-						headerTitle: i18n.t('tabs.artists') || 'Artists',
+						headerTitle: i18n.t('appTab.artists'),
 						headerStyle: {
 							backgroundColor: colors.background,
 						},

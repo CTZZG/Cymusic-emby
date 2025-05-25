@@ -792,7 +792,7 @@ const deleteMusicApiById = (musicApiId: string) => {
 }
 
 /**
- * 获取Emby播放URL
+ * 获取Emby播放URL - 根据官方API文档修正
  * @param musicItem 音乐项目
  * @returns 播放URL或null
  */
@@ -815,11 +815,73 @@ const getEmbyPlayUrl = async (musicItem: IMusic.IMusicItem): Promise<string | nu
             return null
         }
 
-        // 构建Emby播放URL
-        const playUrl = `${config.url}/Audio/${musicItem.id}/stream?UserId=${tokenInfo.userId}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
+        // 首先获取播放信息以确定最佳的播放方式
+        const playbackInfoData = {
+            UserId: tokenInfo.userId,
+            MaxStreamingBitrate: 320000,
+            StartTimeTicks: 0,
+            AudioStreamIndex: 1,
+            SubtitleStreamIndex: -1,
+            MaxAudioChannels: 2,
+            MediaSourceId: musicItem.id,
+            DeviceProfile: {
+                MaxStreamingBitrate: 320000,
+                MaxStaticBitrate: 320000,
+                MusicStreamingTranscodingBitrate: 320000,
+                DirectPlayProfiles: [
+                    {
+                        Container: "mp3,flac,m4a,aac,ogg,oga,webma,ape,opus,wv,wma",
+                        Type: "Audio"
+                    }
+                ],
+                TranscodingProfiles: [
+                    {
+                        Container: "mp3",
+                        Type: "Audio",
+                        AudioCodec: "mp3",
+                        Context: "Streaming",
+                        Protocol: "http",
+                        MaxAudioChannels: "2"
+                    }
+                ],
+                ContainerProfiles: [],
+                CodecProfiles: [],
+                SubtitleProfiles: []
+            }
+        }
 
-        logInfo('Generated Emby play URL:', playUrl)
-        return playUrl
+        // 获取播放信息
+        const playbackInfo = await httpEmby('POST', `Items/${musicItem.id}/PlaybackInfo`, {}, playbackInfoData)
+
+        if (playbackInfo && playbackInfo.data && playbackInfo.data.MediaSources && playbackInfo.data.MediaSources.length > 0) {
+            const mediaSource = playbackInfo.data.MediaSources[0]
+
+            // 如果支持直接播放
+            if (mediaSource.SupportsDirectPlay) {
+                const directPlayUrl = `${config.url}/Audio/${musicItem.id}/stream?Static=true&MediaSourceId=${mediaSource.Id}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
+                logInfo('Using direct play URL:', directPlayUrl)
+                return directPlayUrl
+            }
+
+            // 如果支持直接流
+            if (mediaSource.SupportsDirectStream) {
+                const directStreamUrl = `${config.url}/Audio/${musicItem.id}/stream?MediaSourceId=${mediaSource.Id}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
+                logInfo('Using direct stream URL:', directStreamUrl)
+                return directStreamUrl
+            }
+
+            // 转码播放
+            if (mediaSource.SupportsTranscoding && mediaSource.TranscodingUrl) {
+                const transcodingUrl = `${config.url}${mediaSource.TranscodingUrl}&api_key=${tokenInfo.token}`
+                logInfo('Using transcoding URL:', transcodingUrl)
+                return transcodingUrl
+            }
+        }
+
+        // 回退到简单的流媒体URL
+        const fallbackUrl = `${config.url}/Audio/${musicItem.id}/stream?UserId=${tokenInfo.userId}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
+        logInfo('Using fallback stream URL:', fallbackUrl)
+        return fallbackUrl
 
     } catch (error) {
         logError('Failed to get Emby play URL:', error)

@@ -1,11 +1,9 @@
-import musicSdk from '@/components/utils/musicSdk'
 import { Artist, Playlist, TrackWithPlaylist } from '@/helpers/types'
 import { useEffect } from 'react'
 import { Track } from 'react-native-track-player'
 import { create } from 'zustand'
 
 import { formatMusicItem, getEmbyConfig, getEmbyToken, httpEmby } from '@/helpers/embyApi'
-import { getTopLists } from '@/helpers/userApi/getMusicSource'
 import PersistStatus from '@/store/PersistStatus'
 
 interface LibraryState {
@@ -117,24 +115,22 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 					const tokenInfo = await getEmbyToken()
 					if (!tokenInfo) {
 						console.error('Emby not configured or authentication failed')
-						// 如果Emby未配置，回退到原有的QQ音乐API
-						const data = await musicSdk['tx'].leaderboard.getList(26, 1)
-						const mappedTracks = data.list.map(mapTrack)
-						set({ allTracks: mappedTracks })
+						// 如果Emby未配置，显示空列表
+						set({ allTracks: [] })
 					} else {
-						// 使用Emby API获取所有音乐
+						// 使用Emby API获取所有音乐 - 修正API端点
 						const params = {
 							IncludeItemTypes: 'Audio',
 							Recursive: true,
 							UserId: tokenInfo.userId,
 							StartIndex: 0,
-							Limit: 1000, // 获取更多数据
+							Limit: 2000, // 增加限制以获取更多数据
 							Fields: 'PrimaryImageAspectRatio,MediaSources,Path,Album,AlbumId,ArtistItems,AlbumArtist,RunTimeTicks,ProviderIds,ImageTags,UserData,ChildCount,AlbumPrimaryImageTag',
 							SortBy: 'SortName',
 							SortOrder: 'Ascending'
 						}
 
-						const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
+						const result = await httpEmby('GET', 'Items', params)
 						if (result && result.data && result.data.Items) {
 							const formattedTracks = await Promise.all(
 								result.data.Items.map((item: any) => formatMusicItem(item))
@@ -142,10 +138,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 							const mappedTracks = formattedTracks.map(mapEmbyTrack)
 							set({ allTracks: mappedTracks })
 						} else {
-							// 如果Emby请求失败，回退到QQ音乐
-							const data = await musicSdk['tx'].leaderboard.getList(26, 1)
-							const mappedTracks = data.list.map(mapTrack)
-							set({ allTracks: mappedTracks })
+							// 如果Emby请求失败，显示空列表
+							set({ allTracks: [] })
 						}
 					}
 				}
@@ -183,7 +177,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 					Fields: 'PrimaryImageAspectRatio,ChildCount,ImageTags'
 				}
 
-				const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
+				const result = await httpEmby('GET', 'Items', params)
 				if (result && result.data && result.data.Items) {
 					const embyPlaylists = result.data.Items.map((playlist: any) => ({
 						id: playlist.Id,
@@ -211,30 +205,12 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 				}
 			}
 
-			// 如果Emby不可用，回退到原有的QQ音乐播放列表
-			const playlists = await getTopLists()
-			const combinedData = playlists.flatMap((group) =>
-				group.data.map((playlist) => ({
-					...playlist,
-					coverImg: playlist.coverImg.replace(/^http:/, 'https:'),
-				})),
-			)
-			set({ playlists: combinedData })
+			// 如果Emby不可用，显示空播放列表
+			set({ playlists: [] })
 		} catch (error) {
 			console.error('Failed to set playlist:', error)
-			// 出错时回退到QQ音乐播放列表
-			try {
-				const playlists = await getTopLists()
-				const combinedData = playlists.flatMap((group) =>
-					group.data.map((playlist) => ({
-						...playlist,
-						coverImg: playlist.coverImg.replace(/^http:/, 'https:'),
-					})),
-				)
-				set({ playlists: combinedData })
-			} catch (fallbackError) {
-				console.error('Fallback playlist loading also failed:', fallbackError)
-			}
+			// 出错时显示空播放列表
+			set({ playlists: [] })
 		}
 	},
 	// getMusicIndex: (musicItem) => {
