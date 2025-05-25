@@ -1,7 +1,8 @@
 import GlobalButton from '@/components/GlobalButton'
 import { StackScreenWithSearchBar } from '@/constants/layout'
+import { colors } from '@/constants/tokens'
 import { defaultStyles } from '@/styles'
-import i18n, { nowLanguage } from '@/utils/i18n'
+import { nowLanguage } from '@/utils/i18n'
 import { Stack } from 'expo-router'
 import { View } from 'react-native'
 const SongsScreenLayout = () => {
@@ -12,9 +13,56 @@ const SongsScreenLayout = () => {
 				<Stack.Screen
 					name="index"
 					options={{
-						...StackScreenWithSearchBar,
-						headerTitle: i18n.t('appTab.songs'),
+						headerTitle: '音乐',
+						headerStyle: {
+							backgroundColor: colors.background,
+						},
+						headerTintColor: colors.text,
 						headerRight: () => <GlobalButton />,
+					}}
+				/>
+				<Stack.Screen
+					name="recentlyAdded"
+					options={{
+						...StackScreenWithSearchBar,
+						headerTitle: '最新添加',
+						headerStyle: {
+							backgroundColor: colors.background,
+						},
+						headerTintColor: colors.text,
+					}}
+				/>
+				<Stack.Screen
+					name="mostPlayed"
+					options={{
+						...StackScreenWithSearchBar,
+						headerTitle: '播放最多',
+						headerStyle: {
+							backgroundColor: colors.background,
+						},
+						headerTintColor: colors.text,
+					}}
+				/>
+				<Stack.Screen
+					name="recentlyPlayed"
+					options={{
+						...StackScreenWithSearchBar,
+						headerTitle: '最近播放',
+						headerStyle: {
+							backgroundColor: colors.background,
+						},
+						headerTintColor: colors.text,
+					}}
+				/>
+				<Stack.Screen
+					name="random"
+					options={{
+						...StackScreenWithSearchBar,
+						headerTitle: '随机播放',
+						headerStyle: {
+							backgroundColor: colors.background,
+						},
+						headerTintColor: colors.text,
 					}}
 				/>
 			</Stack>

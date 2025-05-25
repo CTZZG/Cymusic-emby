@@ -24,7 +24,7 @@ const ALL_SONGS_FIXED_ARTWORK_URL = 'https://p1.music.126.net/oT-RHuPBJiD7WMoU7W
 const FETCH_ALL_LIMIT = 999999;
 
 const EXTERNAL_ARTWORK_CHECK_TIMEOUT_MS = 300;
-const EXTERNAL_API_USER_AGENT = 'CyMusic/1.0.0';
+const EXTERNAL_API_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
 // 类型定义
 export interface EmbyConfig {
@@ -143,7 +143,7 @@ export async function getEmbyToken(forceRefresh: boolean = false): Promise<EmbyT
   const authUrl = `${normalizeUrl(url)}/Users/AuthenticateByName`;
   const headers = {
     'Content-Type': 'application/json',
-    'X-Emby-Authorization': `MediaBrowser Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`,
+    'X-Emby-Authorization': `Emby Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`,
     'User-Agent': getUserAgent()
   };
 
@@ -172,7 +172,7 @@ export async function getEmbyApiAuthHeaders(forceTokenRefresh: boolean = false):
   const tokenInfo = await getEmbyToken(forceTokenRefresh);
   if (!tokenInfo) return null;
 
-  let authHeader = `MediaBrowser Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`;
+  let authHeader = `Emby Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${globalEmbyDeviceId}", Version="${EMBY_APP_VERSION}"`;
   if (tokenInfo.token) {
     authHeader += `, Token="${tokenInfo.token}"`;
   }
@@ -721,4 +721,67 @@ export async function getLyricApi(musicItem: any): Promise<{ rawLrc: string } | 
   }
 
   return null;
+}
+
+// 获取主页推荐数据
+export async function getHomeRecommendations(): Promise<{
+  recentlyAdded: any[];
+  mostPlayed: any[];
+  recentlyPlayed: any[];
+  randomTracks: any[];
+} | null> {
+  const tokenInfo = await getEmbyToken();
+  if (!tokenInfo) return null;
+
+  const baseParams = {
+    UserId: tokenInfo.userId,
+    IncludeItemTypes: 'Audio',
+    Recursive: true,
+    Limit: 10, // 每个分类获取10首歌
+    Fields: 'PrimaryImageAspectRatio,MediaSources,Path,Album,AlbumId,ArtistItems,AlbumArtist,RunTimeTicks,ProviderIds,ImageTags,UserData,DateCreated,CommunityRating,AlbumPrimaryImageTag,PlayCount,DatePlayed'
+  };
+
+  try {
+    // 最新添加
+    const recentlyAddedResult = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, {
+      ...baseParams,
+      SortBy: 'DateCreated',
+      SortOrder: 'Descending'
+    });
+
+    // 播放最多
+    const mostPlayedResult = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, {
+      ...baseParams,
+      SortBy: 'PlayCount',
+      SortOrder: 'Descending'
+    });
+
+    // 最近播放
+    const recentlyPlayedResult = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, {
+      ...baseParams,
+      SortBy: 'DatePlayed',
+      SortOrder: 'Descending'
+    });
+
+    // 随机播放
+    const randomResult = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, {
+      ...baseParams,
+      SortBy: 'Random'
+    });
+
+    const formatResults = async (result: any) => {
+      if (!result || !result.data || !result.data.Items) return [];
+      return await Promise.all(result.data.Items.map((item: any) => formatMusicItem(item)));
+    };
+
+    return {
+      recentlyAdded: await formatResults(recentlyAddedResult),
+      mostPlayed: await formatResults(mostPlayedResult),
+      recentlyPlayed: await formatResults(recentlyPlayedResult),
+      randomTracks: await formatResults(randomResult)
+    };
+  } catch (error) {
+    console.error('Failed to fetch home recommendations:', error);
+    return null;
+  }
 }

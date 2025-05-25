@@ -1,5 +1,5 @@
+import { formatAlbumItem, getEmbyToken, httpEmby } from '@/helpers/embyApi'
 import { create } from 'zustand'
-import { getEmbyToken, httpEmby, formatAlbumItem } from '@/helpers/embyApi'
 
 interface AlbumState {
   albums: any[]
@@ -22,7 +22,7 @@ export const useAlbumsStore = create<AlbumState>((set, get) => ({
   fetchAlbums: async (refresh = false) => {
     try {
       const { allAlbums, page, isLoading } = get()
-      
+
       if (isLoading) return
 
       if (refresh || allAlbums.length === 0) {
@@ -47,7 +47,7 @@ export const useAlbumsStore = create<AlbumState>((set, get) => ({
             SortOrder: 'Ascending'
           }
 
-          const result = await httpEmby('GET', 'Items', params)
+          const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
           if (result && result.data && result.data.Items) {
             const formattedAlbums = await Promise.all(
               result.data.Items.map((item: any) => formatAlbumItem(item))

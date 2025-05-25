@@ -1,5 +1,5 @@
+import { formatArtistItem, getEmbyToken, httpEmby } from '@/helpers/embyApi'
 import { create } from 'zustand'
-import { getEmbyToken, httpEmby, formatArtistItem } from '@/helpers/embyApi'
 
 interface ArtistState {
   artists: any[]
@@ -22,7 +22,7 @@ export const useArtistsStore = create<ArtistState>((set, get) => ({
   fetchArtists: async (refresh = false) => {
     try {
       const { allArtists, page, isLoading } = get()
-      
+
       if (isLoading) return
 
       if (refresh || allArtists.length === 0) {
@@ -47,7 +47,7 @@ export const useArtistsStore = create<ArtistState>((set, get) => ({
             SortOrder: 'Ascending'
           }
 
-          const result = await httpEmby('GET', 'Items', params)
+          const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
           if (result && result.data && result.data.Items) {
             const formattedArtists = await Promise.all(
               result.data.Items.map((item: any) => formatArtistItem(item))

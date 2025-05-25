@@ -130,7 +130,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 							SortOrder: 'Ascending'
 						}
 
-						const result = await httpEmby('GET', 'Items', params)
+						const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
 						if (result && result.data && result.data.Items) {
 							const formattedTracks = await Promise.all(
 								result.data.Items.map((item: any) => formatMusicItem(item))
@@ -177,7 +177,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 					Fields: 'PrimaryImageAspectRatio,ChildCount,ImageTags'
 				}
 
-				const result = await httpEmby('GET', 'Items', params)
+				const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
 				if (result && result.data && result.data.Items) {
 					const embyPlaylists = result.data.Items.map((playlist: any) => ({
 						id: playlist.Id,

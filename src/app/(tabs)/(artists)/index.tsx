@@ -1,9 +1,9 @@
 import { screenPadding } from '@/constants/tokens'
-import { getEmbyConfig, getEmbyToken, httpEmby } from '@/helpers/embyApi'
 import { useNavigationSearch } from '@/hooks/useNavigationSearch'
+import { useArtists, useArtistsHasMore, useArtistsLoading } from '@/store/artists'
 import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { ActivityIndicator, FlatList, Image, RefreshControl, Text, TouchableOpacity, View } from 'react-native'
 
 interface Artist {
@@ -23,10 +23,9 @@ const ArtistsScreen = () => {
 		},
 	})
 
-	const [artists, setArtists] = useState<Artist[]>([])
-	const [isLoading, setIsLoading] = useState(false)
-	const [page, setPage] = useState(1)
-	const [hasMore, setHasMore] = useState(true)
+	const { artists, fetchArtists } = useArtists()
+	const isLoading = useArtistsLoading()
+	const hasMore = useArtistsHasMore()
 
 	const filteredArtists = useMemo(() => {
 		if (!search) return artists
@@ -35,72 +34,18 @@ const ArtistsScreen = () => {
 		)
 	}, [search, artists])
 
-	const fetchArtists = async (pageNum: number = 1, isRefresh: boolean = false) => {
-		if (isLoading) return
-
-		setIsLoading(true)
-		try {
-			const tokenInfo = await getEmbyToken()
-			if (tokenInfo) {
-				// 使用Emby API获取艺术家列表
-				const params = {
-					IncludeItemTypes: 'MusicArtist',
-					Recursive: true,
-					UserId: tokenInfo.userId,
-					StartIndex: (pageNum - 1) * 50,
-					Limit: 50,
-					Fields: 'PrimaryImageAspectRatio,ChildCount,ImageTags',
-					SortBy: 'SortName',
-					SortOrder: 'Ascending'
-				}
-
-				const result = await httpEmby('GET', 'Items', params)
-				if (result && result.data && result.data.Items) {
-					const newArtists = result.data.Items.map((artist: any) => ({
-						id: artist.Id,
-						name: artist.Name || 'Unknown Artist',
-						avatar: artist.ImageTags?.Primary
-							? `${getEmbyConfig()?.url}/Items/${artist.Id}/Images/Primary?maxWidth=300&maxHeight=300&tag=${artist.ImageTags.Primary}&format=jpg&quality=90`
-							: 'https://via.placeholder.com/300',
-						description: artist.Overview || '',
-						worksNum: artist.ChildCount || 0,
-						fans: 0 // Emby没有粉丝数概念
-					}))
-
-					if (isRefresh) {
-						setArtists(newArtists)
-					} else {
-						setArtists(prev => [...prev, ...newArtists])
-					}
-
-					setHasMore(result.data.Items.length === 50)
-					setPage(pageNum + 1)
-				}
-			} else {
-				// Emby未配置时显示提示
-				if (isRefresh) {
-					setArtists([])
-				}
-			}
-		} catch (error) {
-			console.error('Failed to fetch artists:', error)
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
 	useEffect(() => {
-		fetchArtists(1, true)
+		fetchArtists(true) // 初始加载
 	}, [])
 
 	const handleLoadMore = () => {
 		if (hasMore && !isLoading) {
-			fetchArtists(page)
+			fetchArtists(false) // 加载更多
 		}
 	}
 
 	const handleRefresh = () => {
-		fetchArtists(1, true) // 刷新数据
+		fetchArtists(true) // 刷新数据
 	}
 
 	const renderArtist = ({ item }: { item: Artist }) => (
