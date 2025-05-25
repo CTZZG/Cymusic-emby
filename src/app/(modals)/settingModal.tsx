@@ -11,7 +11,7 @@ import myTrackPlayer, {
 	useCurrentQuality,
 } from '@/helpers/trackPlayerIndex'
 import PersistStatus from '@/store/PersistStatus'
-import { useEmbyConfig } from '@/store/embyConfigStore'
+import useEmbyConfigStore, { useEmbyConfig } from '@/store/embyConfigStore'
 import i18n, { changeLanguage, nowLanguage } from '@/utils/i18n'
 import { GlobalState } from '@/utils/stateMapper'
 import { showToast } from '@/utils/utils'
@@ -912,123 +912,224 @@ const SettingModal = () => {
 	}
 
 	// Emby配置模态框组件
-	const EmbyConfigModal = () => (
-		<View style={styles.modalOverlay}>
-			<View style={styles.modalContainer}>
-				<ScrollView
-					contentContainerStyle={styles.modalScrollContent}
-					keyboardShouldPersistTaps="always"
-					showsVerticalScrollIndicator={false}
-				>
-					<Text style={styles.modalTitle}>Emby服务器配置</Text>
-
-					<View style={styles.inputContainer}>
-						<Text style={styles.inputLabel}>服务器地址 *</Text>
-						<TextInput
-							style={styles.textInput}
-							value={embyUrl}
-							onChangeText={setEmbyUrl}
-							placeholder="http://192.168.1.100:8096"
-							placeholderTextColor={colors.textMuted}
-							autoCapitalize="none"
-							autoCorrect={false}
-							keyboardType="url"
-							returnKeyType="next"
-							blurOnSubmit={false}
-						/>
-					</View>
-
-					<View style={styles.inputContainer}>
-						<Text style={styles.inputLabel}>用户名 *</Text>
-						<TextInput
-							style={styles.textInput}
-							value={embyUsername}
-							onChangeText={setEmbyUsername}
-							placeholder="输入Emby用户名"
-							placeholderTextColor={colors.textMuted}
-							autoCapitalize="none"
-							autoCorrect={false}
-							returnKeyType="next"
-							blurOnSubmit={false}
-						/>
-					</View>
-
-					<View style={styles.inputContainer}>
-						<Text style={styles.inputLabel}>密码 *</Text>
-						<TextInput
-							style={styles.textInput}
-							value={embyPassword}
-							onChangeText={setEmbyPassword}
-							placeholder="输入Emby密码"
-							placeholderTextColor={colors.textMuted}
-							secureTextEntry={true}
-							autoCapitalize="none"
-							autoCorrect={false}
-							returnKeyType="next"
-							blurOnSubmit={false}
-						/>
-					</View>
-
-					<View style={styles.inputContainer}>
-						<Text style={styles.inputLabel}>设备ID (可选)</Text>
-						<TextInput
-							style={styles.textInput}
-							value={embyDeviceId}
-							onChangeText={setEmbyDeviceId}
-							placeholder="留空将自动生成"
-							placeholderTextColor={colors.textMuted}
-							autoCapitalize="none"
-							autoCorrect={false}
-							returnKeyType="done"
-						/>
-					</View>
-
-					<View style={styles.switchContainer}>
-						<Text style={styles.inputLabel}>上传歌单到Emby</Text>
-						<Switch
-							value={embyUploadPlaylist}
-							onValueChange={setEmbyUploadPlaylist}
-							trackColor={{ false: colors.textMuted, true: colors.primary }}
-							thumbColor={embyUploadPlaylist ? colors.primary : colors.textMuted}
-						/>
-					</View>
-
-					{embyConfig.error && (
-						<Text style={styles.errorText}>{embyConfig.error}</Text>
-					)}
-
-					<View style={styles.modalButtons}>
-						<TouchableOpacity
-							style={[styles.modalButton, styles.cancelButton]}
-							onPress={() => setShowEmbyConfig(false)}
-						>
-							<Text style={styles.cancelButtonText}>取消</Text>
-						</TouchableOpacity>
-
-						<TouchableOpacity
-							style={[styles.modalButton, styles.testButton]}
-							onPress={handleEmbyConfigTest}
-							disabled={embyConfig.isLoading}
-						>
-							<Text style={styles.testButtonText}>
-								{embyConfig.isLoading ? '测试中...' : '测试连接'}
-							</Text>
-						</TouchableOpacity>
-
-						<TouchableOpacity
-							style={[styles.modalButton, styles.saveButton]}
-							onPress={handleEmbyConfigSave}
-							disabled={embyConfig.isLoading || !embyUrl.trim() || !embyUsername.trim() || !embyPassword.trim()}
-						>
-							<Text style={styles.saveButtonText}>
-								{embyConfig.isLoading ? '保存中...' : '保存'}
-							</Text>
-						</TouchableOpacity>
-					</View>
-				</ScrollView>
+	const EmbyConfigModal = () => {
+		const { top } = useSafeAreaInsets(); // 确保这个 hook 在函数组件顶层
+	
+		// 从 Zustand store 获取初始值和 actions
+		const initialUrl = useEmbyConfigStore(state => state.url);
+		const initialUsername = useEmbyConfigStore(state => state.username);
+		const initialPassword = useEmbyConfigStore(state => state.password);
+		const initialDeviceId = useEmbyConfigStore(state => state.deviceId);
+		const initialUploadPlaylist = useEmbyConfigStore(state => state.uploadPlaylistToEmby);
+		const isLoading = useEmbyConfigStore(state => state.isLoading);
+		const error = useEmbyConfigStore(state => state.error);
+		const setConfigInStore = useEmbyConfigStore(state => state.setConfig); // 用于最终更新全局状态
+		const testConnection = useEmbyConfigStore(state => state.testConnection);
+		const setIsLoadingInStore = (loading: boolean) => useEmbyConfigStore.setState({ isLoading: loading });
+		const setErrorInStore = (err: string | null) => useEmbyConfigStore.setState({ error: err });
+	
+	
+		// 使用组件局部 state 管理 TextInput 的实时输入
+		const [localUrl, setLocalUrl] = useState(initialUrl || '');
+		const [localUsername, setLocalUsername] = useState(initialUsername || '');
+		const [localPassword, setLocalPassword] = useState(initialPassword || ''); // 注意：密码通常不建议这样预填和同步，但根据现有逻辑调整
+		const [localDeviceId, setLocalDeviceId] = useState(initialDeviceId || '');
+		const [localUploadPlaylist, setLocalUploadPlaylist] = useState(initialUploadPlaylist);
+	
+		// 如果希望外部 store 的变化能同步回本地输入框（可选，看产品逻辑）
+		useEffect(() => { setLocalUrl(initialUrl || ''); }, [initialUrl]);
+		useEffect(() => { setLocalUsername(initialUsername || ''); }, [initialUsername]);
+		useEffect(() => { setLocalPassword(initialPassword || ''); }, [initialPassword]);
+		useEffect(() => { setLocalDeviceId(initialDeviceId || ''); }, [initialDeviceId]);
+		useEffect(() => { setLocalUploadPlaylist(initialUploadPlaylist); }, [initialUploadPlaylist]);
+	
+	
+		const handleEmbyConfigSave = async () => {
+			setIsLoadingInStore(true);
+			setErrorInStore(null);
+			try {
+				const newConfigData = {
+					url: localUrl.trim(),
+					username: localUsername.trim(),
+					password: localPassword.trim(), // 注意：密码的处理方式
+					deviceId: localDeviceId.trim() || undefined,
+					uploadPlaylistToEmby: localUploadPlaylist,
+				};
+				setConfigInStore(newConfigData); // 更新全局 store
+	
+				// 调用 testConnection，它应该使用 store 里的最新配置
+				const success = await testConnection();
+				if (success) {
+					Alert.alert('成功', 'Emby配置已保存并连接成功！');
+					// setShowEmbyConfig(false); // 这个是父组件 SettingModal 的状态，需要通过 props 回调或 context/zustand 控制
+				} else {
+					Alert.alert('连接失败', error || '请检查配置信息'); // error 应该也是从 store 获取最新的
+				}
+			} catch (e) {
+				setErrorInStore('保存配置时发生错误');
+				Alert.alert('错误', '保存配置时发生错误');
+			} finally {
+				setIsLoadingInStore(false);
+			}
+		};
+	
+		const handleEmbyConfigTest = async () => {
+			setIsLoadingInStore(true);
+			setErrorInStore(null);
+			try {
+				// 临时更新配置以供测试，或者让 testConnection 接受参数
+				const tempConfigData = {
+					url: localUrl.trim(),
+					username: localUsername.trim(),
+					password: localPassword.trim(),
+					deviceId: localDeviceId.trim() || undefined,
+					uploadPlaylistToEmby: localUploadPlaylist,
+				};
+				// 理想情况下，testConnection 应该可以接受一个配置对象进行测试，
+				// 或者它内部总是从 store 读取最新状态。
+				// 这里假设它会读取 store 的最新状态，所以先调用 setConfigInStore（或者一个临时的 updateConfigForTest）
+				setConfigInStore(tempConfigData); // 确保测试时用的是当前输入的值
+	
+				const success = await testConnection();
+				if (success) {
+					Alert.alert('测试成功', 'Emby服务器连接正常！');
+				} else {
+					Alert.alert('测试失败', error || '请检查配置信息');
+				}
+			} catch (e) {
+				setErrorInStore('测试连接时发生错误');
+				Alert.alert('测试错误', '测试连接时发生错误');
+			} finally {
+				setIsLoadingInStore(false);
+			}
+		};
+	
+	
+		return (
+			<View style={styles.modalOverlay}>
+				<View style={styles.modalContainer}>
+					<ScrollView
+						contentContainerStyle={styles.modalScrollContent}
+						keyboardShouldPersistTaps="always" // 尝试 'always'
+						showsVerticalScrollIndicator={false}
+					>
+						<Text style={styles.modalTitle}>Emby服务器配置</Text>
+	
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>服务器地址 *</Text>
+							<TextInput
+								style={styles.textInput}
+								value={localUrl} // 绑定到局部 state
+								onChangeText={setLocalUrl} // 更新局部 state
+								// onBlur={() => setConfigInStore({ url: localUrl.trim() })} // 在失焦时更新全局 store (可选)
+								placeholder="http://192.168.1.100:8096"
+								placeholderTextColor={colors.textMuted}
+								autoCapitalize="none"
+								autoCorrect={false}
+								keyboardType="url"
+								returnKeyType="next"
+								blurOnSubmit={false}
+							/>
+						</View>
+	
+						{/* 其他输入框也做类似修改，绑定到 localUsername, localPassword 等 */}
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>用户名 *</Text>
+							<TextInput
+								style={styles.textInput}
+								value={localUsername}
+								onChangeText={setLocalUsername}
+								placeholder="输入Emby用户名"
+								placeholderTextColor={colors.textMuted}
+								autoCapitalize="none"
+								autoCorrect={false}
+								returnKeyType="next"
+								blurOnSubmit={false}
+							/>
+						</View>
+	
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>密码 *</Text>
+							<TextInput
+								style={styles.textInput}
+								value={localPassword}
+								onChangeText={setLocalPassword}
+								placeholder="输入Emby密码"
+								placeholderTextColor={colors.textMuted}
+								secureTextEntry={true}
+								autoCapitalize="none"
+								autoCorrect={false}
+								returnKeyType="next"
+								blurOnSubmit={false}
+							/>
+						</View>
+	
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>设备ID (可选)</Text>
+							<TextInput
+								style={styles.textInput}
+								value={localDeviceId}
+								onChangeText={setLocalDeviceId}
+								placeholder="留空将自动生成"
+								placeholderTextColor={colors.textMuted}
+								autoCapitalize="none"
+								autoCorrect={false}
+								returnKeyType="done"
+							/>
+						</View>
+	
+						<View style={styles.switchContainer}>
+							<Text style={styles.inputLabel}>上传歌单到Emby</Text>
+							<Switch
+								value={localUploadPlaylist}
+								onValueChange={setLocalUploadPlaylist}
+								trackColor={{ false: colors.textMuted, true: colors.primary }}
+								thumbColor={localUploadPlaylist ? colors.primary : colors.textMuted}
+							/>
+						</View>
+	
+						{error && (
+							<Text style={styles.errorText}>{error}</Text>
+						)}
+	
+						<View style={styles.modalButtons}>
+							<TouchableOpacity
+								style={[styles.modalButton, styles.cancelButton]}
+								onPress={() => {
+									// 需要一种方式来关闭这个 Modal，这个逻辑在父组件 SettingModal 中
+									// 可能需要父组件传递一个 onClose 回调
+									// 例如：props.onClose();
+									// 或者如果 SettingModal 也用 Zustand 管理 showEmbyConfig，则在这里更新那个状态
+								}}
+							>
+								<Text style={styles.cancelButtonText}>取消</Text>
+							</TouchableOpacity>
+	
+							<TouchableOpacity
+								style={[styles.modalButton, styles.testButton]}
+								onPress={handleEmbyConfigTest}
+								disabled={isLoading}
+							>
+								<Text style={styles.testButtonText}>
+									{isLoading ? '测试中...' : '测试连接'}
+								</Text>
+							</TouchableOpacity>
+	
+							<TouchableOpacity
+								style={[styles.modalButton, styles.saveButton]}
+								onPress={handleEmbyConfigSave}
+								disabled={isLoading || !localUrl.trim() || !localUsername.trim() || !localPassword.trim()}
+							>
+								<Text style={styles.saveButtonText}>
+									{isLoading ? '保存中...' : '保存'}
+								</Text>
+							</TouchableOpacity>
+						</View>
+					</ScrollView>
+				</View>
 			</View>
-		</View>
-	)
+		);
+	};
 
 	return (
 		<View style={styles.container}>
