@@ -9,23 +9,23 @@ import { produce } from 'immer'
 import shuffle from 'lodash.shuffle'
 import RNFS from 'react-native-fs'
 import ReactNativeTrackPlayer, {
-	Event,
-	State,
-	Track,
-	usePlaybackState,
-	useProgress,
+    Event,
+    State,
+    Track,
+    usePlaybackState,
+    useProgress,
 } from 'react-native-track-player'
 
 import { MusicRepeatMode } from '@/helpers/types'
 import PersistStatus from '@/store/PersistStatus'
 import {
-	getMusicIndex,
-	getPlayList,
-	getPlayListMusicAt,
-	isInPlayList,
-	isPlayListEmpty,
-	setPlayList,
-	usePlayList,
+    getMusicIndex,
+    getPlayList,
+    getPlayListMusicAt,
+    isInPlayList,
+    isPlayListEmpty,
+    setPlayList,
+    usePlayList,
 } from '@/store/playList'
 import { createMediaIndexMap } from '@/utils/mediaIndexMap'
 import { musicIsPaused } from '@/utils/trackUtils'
@@ -35,10 +35,10 @@ import { myGetLyric } from '@/helpers/userApi/getMusicSource'
 
 import { fakeAudioMp3Uri } from '@/constants/images'
 import {
-	getEmbyConfig,
-	getEmbyToken,
-	getLyricApi,
-	httpEmby
+    getEmbyConfig,
+    getEmbyToken,
+    getLyricApi,
+    httpEmby
 } from '@/helpers/embyApi'
 import { nowLanguage } from '@/utils/i18n'
 import { showToast } from '@/utils/utils'
@@ -824,39 +824,16 @@ const getEmbyPlayUrl = async (musicItem: IMusic.IMusicItem): Promise<string | nu
             return null
         }
 
-        // 首先获取播放信息以确定最佳的播放方式
+        // 使用与南瓜_emby_superd.js相同的PlaybackInfo请求格式
         const playbackInfoData = {
             UserId: tokenInfo.userId,
-            MaxStreamingBitrate: 320000,
-            StartTimeTicks: 0,
-            AudioStreamIndex: 1,
-            SubtitleStreamIndex: -1,
-            MaxAudioChannels: 2,
-            MediaSourceId: musicItem.id,
-            DeviceProfile: {
-                MaxStreamingBitrate: 320000,
-                MaxStaticBitrate: 320000,
-                MusicStreamingTranscodingBitrate: 320000,
-                DirectPlayProfiles: [
-                    {
-                        Container: "mp3,flac,m4a,aac,ogg,oga,webma,ape,opus,wv,wma",
-                        Type: "Audio"
-                    }
-                ],
-                TranscodingProfiles: [
-                    {
-                        Container: "mp3",
-                        Type: "Audio",
-                        AudioCodec: "mp3",
-                        Context: "Streaming",
-                        Protocol: "http",
-                        MaxAudioChannels: "2"
-                    }
-                ],
-                ContainerProfiles: [],
-                CodecProfiles: [],
-                SubtitleProfiles: []
-            }
+            Id: musicItem.id,
+            EnableDirectPlay: true,
+            EnableDirectStream: true,
+            AllowVideoStreamCopy: true,
+            AllowAudioStreamCopy: true,
+            IsPlayback: true,
+            AutoOpenLiveStream: false
         }
 
         // 获取播放信息
@@ -865,28 +842,56 @@ const getEmbyPlayUrl = async (musicItem: IMusic.IMusicItem): Promise<string | nu
         logInfo('PlaybackInfo API response:', JSON.stringify(playbackInfo))
 
         if (playbackInfo && playbackInfo.data && playbackInfo.data.MediaSources && playbackInfo.data.MediaSources.length > 0) {
-            const mediaSource = playbackInfo.data.MediaSources[0]
+            const playbackData = playbackInfo.data
 
-            // 如果支持直接播放
-            if (mediaSource.SupportsDirectPlay) {
-                const directPlayUrl = `${config.url}/Audio/${musicItem.id}/stream?Static=true&MediaSourceId=${mediaSource.Id}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
-                logInfo('Using direct play URL:', directPlayUrl)
-                return directPlayUrl
+            // 选择最佳的媒体源 - 参考南瓜_emby_superd.js
+            const sourceToPlay = playbackData.MediaSources.find((s: any) => !s.IsInfiniteStream) || playbackData.MediaSources[0]
+
+            if (!sourceToPlay) {
+                logError('No suitable media source found')
+                return null
             }
 
-            // 如果支持直接流
-            if (mediaSource.SupportsDirectStream) {
-                const directStreamUrl = `${config.url}/Audio/${musicItem.id}/stream?MediaSourceId=${mediaSource.Id}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
-                logInfo('Using direct stream URL:', directStreamUrl)
-                return directStreamUrl
+            const mediaSourceId = sourceToPlay.Id
+            const playSessionId = playbackData.PlaySessionId || `cymusic-${Date.now()}-${musicItem.id}`
+
+            // 构建流媒体URL - 参考南瓜_emby_superd.js的实现
+            let streamUrl: string
+
+            if (sourceToPlay.SupportsDirectPlay) {
+                // 直接播放
+                streamUrl = `${config.url}/Audio/${musicItem.id}/stream?Static=true&MediaSourceId=${mediaSourceId}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
+                logInfo('Using direct play URL:', streamUrl)
+            } else if (sourceToPlay.SupportsDirectStream) {
+                // 直接流
+                streamUrl = `${config.url}/Audio/${musicItem.id}/stream?MediaSourceId=${mediaSourceId}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
+                logInfo('Using direct stream URL:', streamUrl)
+            } else if (sourceToPlay.SupportsTranscoding && sourceToPlay.TranscodingUrl) {
+                // 转码 - 使用服务器提供的转码URL
+                streamUrl = `${config.url}${sourceToPlay.TranscodingUrl}&api_key=${tokenInfo.token}`
+                logInfo('Using transcoding URL:', streamUrl)
+            } else {
+                // 回退到基本流媒体
+                streamUrl = `${config.url}/Audio/${musicItem.id}/stream?MediaSourceId=${mediaSourceId}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
+                logInfo('Using fallback stream URL:', streamUrl)
             }
 
-            // 转码播放
-            if (mediaSource.SupportsTranscoding && mediaSource.TranscodingUrl) {
-                const transcodingUrl = `${config.url}${mediaSource.TranscodingUrl}&api_key=${tokenInfo.token}`
-                logInfo('Using transcoding URL:', transcodingUrl)
-                return transcodingUrl
+            // 上报播放开始状态 - 参考南瓜_emby_superd.js
+            try {
+                const playbackStartInfo = {
+                    ItemId: musicItem.id,
+                    MediaSourceId: mediaSourceId,
+                    CanSeek: true,
+                    PlaySessionId: playSessionId,
+                    PlayMethod: sourceToPlay.SupportsDirectPlay ? 'DirectPlay' : (sourceToPlay.SupportsDirectStream ? 'DirectStream' : 'Transcode')
+                }
+                await httpEmby('POST', '/Sessions/Playing', {}, playbackStartInfo)
+                logInfo('Reported playback start to Emby')
+            } catch (error) {
+                logError('Failed to report playback start:', error)
             }
+
+            return streamUrl
         }
 
         // 回退到简单的流媒体URL
@@ -1612,3 +1617,4 @@ const myTrackPlayer = {
 
 export default myTrackPlayer
 export { MusicRepeatMode, State as MusicState }
+

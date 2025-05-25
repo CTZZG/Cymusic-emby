@@ -3,6 +3,7 @@ import { colors } from '@/constants/tokens'
 import LyricManager from '@/helpers/lyricManager'
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState'
 import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer'
+import useEmbyConfigStore from '@/store/embyConfigStore'
 import i18n, { setI18nConfig } from '@/utils/i18n'
 import { router, SplashScreen, Stack } from 'expo-router'
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
@@ -31,6 +32,20 @@ const App = () => {
 	LyricManager.setup()
 	const [isI18nReady, setIsI18nReady] = useState(false)
 	const { hasShareIntent } = useShareIntentContext()
+
+	// 确保Emby配置在应用启动时被正确加载
+	useEffect(() => {
+		const loadEmbyConfig = () => {
+			try {
+				useEmbyConfigStore.getState().loadConfig()
+				console.log('Emby配置已加载')
+			} catch (error) {
+				console.error('加载Emby配置失败:', error)
+			}
+		}
+
+		loadEmbyConfig()
+	}, [])
 
 	useEffect(() => {
 		if (hasShareIntent) {
@@ -99,7 +114,7 @@ const App = () => {
 		/*
 	  Or create a completely new type - `tomatoToast`,
 	  building the layout from scratch.
-  
+
 	  I can consume any custom `props` I want.
 	  They will be passed when calling the `show` method (see below)
 	*/

@@ -568,7 +568,7 @@ export async function getLyricApi(musicItem: any): Promise<{ rawLrc: string } | 
 
   if (tokenInfo && tokenInfo.userId && config?.url && musicItem && musicItem.id) {
     try {
-      // 第一步：获取音乐项目详情
+      // 第一步：获取音乐项目详情，包含歌词流信息
       const itemDetailsParams = {
         UserId: tokenInfo.userId,
         Fields: 'MediaSources,MediaStreams'
@@ -600,6 +600,22 @@ export async function getLyricApi(musicItem: any): Promise<{ rawLrc: string } | 
 
         // 查找字幕流
         if (itemData.MediaStreams) {
+          // 首先检查是否有内嵌的歌词数据在Extradata中
+          for (const stream of itemData.MediaStreams) {
+            if (stream.Type === 'Subtitle' && stream.Extradata) {
+              try {
+                const lrcContent = stream.Extradata;
+                if (lrcContent && lrcContent.includes('[') && lrcContent.includes(']')) {
+                  console.log('Found embedded lyrics in MediaStream Extradata');
+                  return { rawLrc: he.decode(lrcContent) };
+                }
+              } catch (e) {
+                console.log('Failed to parse embedded lyrics from Extradata:', e);
+              }
+            }
+          }
+
+          // 如果没有找到Extradata中的歌词，继续查找字幕流
           const lrcStream = itemData.MediaStreams.find((stream: any) => {
             return stream.Type === 'Subtitle' && stream.Codec && stream.Codec.toLowerCase() === 'lrc';
           });
