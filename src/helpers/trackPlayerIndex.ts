@@ -851,7 +851,9 @@ const getEmbyPlayUrl = async (musicItem: IMusic.IMusicItem): Promise<string | nu
         }
 
         // 获取播放信息
+        logInfo('Calling PlaybackInfo API with data:', JSON.stringify(playbackInfoData))
         const playbackInfo = await httpEmby('POST', `Items/${musicItem.id}/PlaybackInfo`, {}, playbackInfoData)
+        logInfo('PlaybackInfo API response:', JSON.stringify(playbackInfo))
 
         if (playbackInfo && playbackInfo.data && playbackInfo.data.MediaSources && playbackInfo.data.MediaSources.length > 0) {
             const mediaSource = playbackInfo.data.MediaSources[0]
@@ -1462,6 +1464,19 @@ const downloadToCache = async (musicItem: IMusic.IMusicItem): Promise<string> =>
 	try {
 		await ensureCacheDirExists()
 		const localPath = getLocalFilePath(musicItem)
+
+		logInfo('开始下载音频文件:', {
+			url: musicItem.url,
+			localPath: localPath,
+			title: musicItem.title,
+			artist: musicItem.artist
+		})
+
+		// 检查URL是否有效
+		if (!musicItem.url || musicItem.url === 'Unknown' || musicItem.url.includes('fake')) {
+			throw new Error('无效的音频URL，无法下载')
+		}
+
 		const downloadResult = await RNFS.downloadFile({
 			fromUrl: musicItem.url,
 			toFile: localPath,
@@ -1472,14 +1487,27 @@ const downloadToCache = async (musicItem: IMusic.IMusicItem): Promise<string> =>
 			},
 		}).promise
 
+		logInfo('下载完成，状态码:', downloadResult.statusCode)
+
 		if (downloadResult.statusCode === 200) {
-			logInfo('音频文件已缓存到本地:', localPath)
-			return localPath
+			// 验证文件是否真的存在
+			const fileExists = await RNFS.exists(localPath)
+			if (fileExists) {
+				logInfo('音频文件已缓存到本地:', localPath)
+				return localPath
+			} else {
+				throw new Error('下载完成但文件不存在')
+			}
 		} else {
 			throw new Error(`下载失败，状态码: ${downloadResult.statusCode}`)
 		}
 	} catch (error) {
-		logError('下载音频文件时出错:', error)
+		logError('下载音频文件时出错:', {
+			error: error,
+			url: musicItem.url,
+			title: musicItem.title,
+			artist: musicItem.artist
+		})
 		throw error
 	}
 }

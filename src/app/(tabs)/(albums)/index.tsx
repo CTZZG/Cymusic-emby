@@ -4,7 +4,7 @@ import { useAlbums, useAlbumsHasMore, useAlbumsLoading } from '@/store/albums'
 import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
 import { useEffect, useMemo } from 'react'
-import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, FlatList, Image, RefreshControl, Text, TouchableOpacity, View } from 'react-native'
 
 interface Album {
 	id: string
@@ -43,6 +43,10 @@ const AlbumsScreen = () => {
 		if (hasMore && !isLoading) {
 			fetchAlbums(false) // 加载更多
 		}
+	}
+
+	const handleRefresh = () => {
+		fetchAlbums(true) // 刷新数据
 	}
 
 	const renderAlbum = ({ item }: { item: Album }) => (
@@ -132,6 +136,14 @@ const AlbumsScreen = () => {
 					paddingHorizontal: screenPadding.horizontal,
 					paddingVertical: 8
 				}}
+				refreshControl={
+					<RefreshControl
+						refreshing={isLoading}
+						onRefresh={handleRefresh}
+						tintColor="#fff"
+						titleColor="#fff"
+					/>
+				}
 				onEndReached={handleLoadMore}
 				onEndReachedThreshold={0.5}
 				ListFooterComponent={

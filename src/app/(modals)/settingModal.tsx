@@ -443,11 +443,16 @@ const SettingModal = () => {
 
 	// 初始化Emby配置状态（只在组件挂载时执行一次）
 	useEffect(() => {
-		setEmbyUrl(embyConfig.config.url || '')
-		setEmbyUsername(embyConfig.config.username || '')
-		setEmbyPassword(embyConfig.config.password || '')
-		setEmbyDeviceId(embyConfig.config.deviceId || '')
-		setEmbyUploadPlaylist(embyConfig.config.uploadPlaylistToEmby || false)
+		// 使用setTimeout确保在下一个事件循环中执行，避免渲染冲突
+		const timer = setTimeout(() => {
+			setEmbyUrl(embyConfig.config.url || '')
+			setEmbyUsername(embyConfig.config.username || '')
+			setEmbyPassword(embyConfig.config.password || '')
+			setEmbyDeviceId(embyConfig.config.deviceId || '')
+			setEmbyUploadPlaylist(embyConfig.config.uploadPlaylistToEmby || false)
+		}, 0)
+
+		return () => clearTimeout(timer)
 	}, []) // 空依赖数组，只在组件挂载时执行
 
 	// Emby配置处理函数

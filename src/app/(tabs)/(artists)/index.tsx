@@ -4,7 +4,7 @@ import { useNavigationSearch } from '@/hooks/useNavigationSearch'
 import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, FlatList, Image, RefreshControl, Text, TouchableOpacity, View } from 'react-native'
 
 interface Artist {
 	id: string
@@ -54,7 +54,7 @@ const ArtistsScreen = () => {
 					SortOrder: 'Ascending'
 				}
 
-				const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
+				const result = await httpEmby('GET', 'Items', params)
 				if (result && result.data && result.data.Items) {
 					const newArtists = result.data.Items.map((artist: any) => ({
 						id: artist.Id,
@@ -97,6 +97,10 @@ const ArtistsScreen = () => {
 		if (hasMore && !isLoading) {
 			fetchArtists(page)
 		}
+	}
+
+	const handleRefresh = () => {
+		fetchArtists(1, true) // 刷新数据
 	}
 
 	const renderArtist = ({ item }: { item: Artist }) => (
@@ -201,6 +205,14 @@ const ArtistsScreen = () => {
 					paddingHorizontal: screenPadding.horizontal,
 					paddingVertical: 8
 				}}
+				refreshControl={
+					<RefreshControl
+						refreshing={isLoading}
+						onRefresh={handleRefresh}
+						tintColor="#fff"
+						titleColor="#fff"
+					/>
+				}
 				onEndReached={handleLoadMore}
 				onEndReachedThreshold={0.5}
 				ListFooterComponent={

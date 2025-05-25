@@ -8,7 +8,7 @@ import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
-import { ScrollView, View } from 'react-native'
+import { RefreshControl, ScrollView, View } from 'react-native'
 const RadiolistsScreen = () => {
 	const router = useRouter()
 
@@ -29,6 +29,10 @@ const RadiolistsScreen = () => {
 		router.push(`/(tabs)/radio/${playlist.title}`)
 	}
 
+	const handleRefresh = () => {
+		setPlayList() // 刷新播放列表
+	}
+
 	return (
 		<View style={defaultStyles.container}>
 			<ScrollView
@@ -36,6 +40,14 @@ const RadiolistsScreen = () => {
 				style={{
 					paddingHorizontal: screenPadding.horizontal,
 				}}
+				refreshControl={
+					<RefreshControl
+						refreshing={false}
+						onRefresh={handleRefresh}
+						tintColor="#fff"
+						titleColor="#fff"
+					/>
+				}
 			>
 				<RadioList
 					scrollEnabled={false}

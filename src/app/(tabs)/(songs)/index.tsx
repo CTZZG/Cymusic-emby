@@ -8,7 +8,7 @@ import { useLibraryStore, useTracks, useTracksLoading } from '@/store/library'
 import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
 import { useMemo } from 'react'
-import { ActivityIndicator, ScrollView, View } from 'react-native'
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native'
 const SongsScreen = () => {
 	const search = useNavigationSearch({
 		searchBarOptions: {
@@ -29,6 +29,10 @@ const SongsScreen = () => {
 		fetchTracks()
 	}
 
+	const handleRefresh = () => {
+		fetchTracks(true) // 传入true表示刷新
+	}
+
 	if (!tracks.length && isLoading) {
 		return (
 			<View style={[defaultStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -41,6 +45,14 @@ const SongsScreen = () => {
 			<ScrollView
 				contentInsetAdjustmentBehavior="automatic"
 				style={{ paddingHorizontal: screenPadding.horizontal }}
+				refreshControl={
+					<RefreshControl
+						refreshing={isLoading}
+						onRefresh={handleRefresh}
+						tintColor="#fff"
+						titleColor="#fff"
+					/>
+				}
 				onScroll={({ nativeEvent }) => {
 					const { layoutMeasurement, contentOffset, contentSize } = nativeEvent
 					const paddingToBottom = 20
