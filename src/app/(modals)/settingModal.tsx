@@ -2,13 +2,13 @@
 import { colors } from '@/constants/tokens'
 import { logError, logInfo } from '@/helpers/logger'
 import myTrackPlayer, {
-    autoCacheLocalStore,
-    isCachedIconVisibleStore,
-    musicApiSelectedStore,
-    musicApiStore,
-    nowApiState,
-    songsNumsToLoadStore,
-    useCurrentQuality,
+	autoCacheLocalStore,
+	isCachedIconVisibleStore,
+	musicApiSelectedStore,
+	musicApiStore,
+	nowApiState,
+	songsNumsToLoadStore,
+	useCurrentQuality,
 } from '@/helpers/trackPlayerIndex'
 import PersistStatus from '@/store/PersistStatus'
 import { useEmbyConfig } from '@/store/embyConfigStore'
@@ -22,17 +22,17 @@ import * as DocumentPicker from 'expo-document-picker'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+	ActivityIndicator,
+	Alert,
+	Image,
+	Linking,
+	ScrollView,
+	StyleSheet,
+	Switch,
+	Text,
+	TextInput,
+	TouchableOpacity,
+	View
 } from 'react-native'
 import RNFS from 'react-native-fs'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -917,7 +917,7 @@ const SettingModal = () => {
 			<View style={styles.modalContainer}>
 				<ScrollView
 					contentContainerStyle={styles.modalScrollContent}
-					keyboardShouldPersistTaps="handled"
+					keyboardShouldPersistTaps="always"
 					showsVerticalScrollIndicator={false}
 				>
 					<Text style={styles.modalTitle}>Emby服务器配置</Text>
