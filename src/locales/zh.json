@@ -92,6 +92,8 @@
 	},
 	"appTab": {
 		"songs": "音乐",
+		"albums": "专辑",
+		"artists": "艺术家",
 		"search": "搜索",
 		"radio": "广播",
 		"favorites": "收藏",
@@ -107,12 +109,15 @@
 		"inRadio": "在广播中搜索",
 		"inSearch": "在线搜索歌曲或歌手",
 		"inSongs": "在歌曲中搜索",
+		"inAlbums": "在专辑中搜索",
+		"inArtists": "在艺术家中搜索",
 		"inFavorites": "在收藏中搜索",
 		"noResults": "没有找到结果",
 		"noMoreResults": "没有更多结果",
 		"cancel": "取消",
 		"inPlaylist": "在歌单中搜索",
 		"songs": "歌曲",
+		"albums": "专辑",
 		"artists": "歌手"
 	},
 	"playButton": {

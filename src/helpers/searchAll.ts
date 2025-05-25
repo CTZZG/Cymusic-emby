@@ -6,7 +6,6 @@ import {
 	searchArtistInternal,
 	searchMusicInternal
 } from '@/helpers/embyApi'
-import { searchArtist, searchMusic } from '@/helpers/userApi/xiaoqiu'
 import { Track } from 'react-native-track-player'
 
 const PAGE_SIZE = 20
@@ -25,7 +24,7 @@ const searchAll = async (
         const tokenInfo = await getEmbyToken()
         if (tokenInfo) {
             console.log('Using Emby search for', type)
-            
+
             if (type === 'songs') {
                 const result = await searchMusicInternal(searchText, page, PAGE_SIZE)
                 return {
@@ -79,33 +78,12 @@ const searchAll = async (
         console.error('Emby search failed, falling back to original search:', error)
     }
 
-    // 回退到原有的搜索逻辑
-    console.log('Using fallback search for', type)
-    let result
-    if (type === 'songs') {
-        console.log('search song')
-        result = await searchMusic(searchText, page, PAGE_SIZE)
-    } else if (type === 'artists') {
-        console.log('search artist')
-        result = await searchArtist(searchText, page)
-        // Transform artist results to Track format
-        result.data = result.data.map((artist) => ({
-            id: artist.id,
-            title: artist.name,
-            artist: artist.name,
-            artwork: artist.avatar,
-            isArtist: true,
-        })) as Track[]
-    } else {
-        // albums - 原有API可能不支持，返回空结果
-        result = { data: [], hasMore: false }
-    }
-
-    const hasMore = result.data.length === PAGE_SIZE
-
+    // 如果Emby不可用，返回空结果而不是回退到原有搜索
+    // 这样避免了混合搜索结果的问题
+    console.log('Emby not available, returning empty results for', type)
     return {
-        data: result.data as Track[],
-        hasMore,
+        data: [],
+        hasMore: false,
     }
 }
 

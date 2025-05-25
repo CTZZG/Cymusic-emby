@@ -435,11 +435,20 @@ const SettingModal = () => {
 	// Emby配置相关状态
 	const embyConfig = useEmbyConfig()
 	const [showEmbyConfig, setShowEmbyConfig] = useState(false)
-	const [embyUrl, setEmbyUrl] = useState(embyConfig.config.url || '')
-	const [embyUsername, setEmbyUsername] = useState(embyConfig.config.username || '')
-	const [embyPassword, setEmbyPassword] = useState(embyConfig.config.password || '')
-	const [embyDeviceId, setEmbyDeviceId] = useState(embyConfig.config.deviceId || '')
-	const [embyUploadPlaylist, setEmbyUploadPlaylist] = useState(embyConfig.config.uploadPlaylistToEmby || false)
+	const [embyUrl, setEmbyUrl] = useState('')
+	const [embyUsername, setEmbyUsername] = useState('')
+	const [embyPassword, setEmbyPassword] = useState('')
+	const [embyDeviceId, setEmbyDeviceId] = useState('')
+	const [embyUploadPlaylist, setEmbyUploadPlaylist] = useState(false)
+
+	// 初始化Emby配置状态（只在组件挂载时执行一次）
+	useEffect(() => {
+		setEmbyUrl(embyConfig.config.url || '')
+		setEmbyUsername(embyConfig.config.username || '')
+		setEmbyPassword(embyConfig.config.password || '')
+		setEmbyDeviceId(embyConfig.config.deviceId || '')
+		setEmbyUploadPlaylist(embyConfig.config.uploadPlaylistToEmby || false)
+	}, []) // 空依赖数组，只在组件挂载时执行
 
 	// Emby配置处理函数
 	const handleEmbyConfigSave = async () => {

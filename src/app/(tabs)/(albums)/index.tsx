@@ -1,10 +1,10 @@
 import { screenPadding } from '@/constants/tokens'
+import { getEmbyConfig, getEmbyToken, httpEmby } from '@/helpers/embyApi'
 import { useNavigationSearch } from '@/hooks/useNavigationSearch'
 import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
-import { useMemo, useState, useEffect } from 'react'
-import { ActivityIndicator, ScrollView, View, Text, TouchableOpacity, Image, FlatList } from 'react-native'
-import { searchAlbumInternal, getEmbyToken } from '@/helpers/embyApi'
+import { useEffect, useMemo, useState } from 'react'
+import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
 
 interface Album {
 	id: string
@@ -30,7 +30,7 @@ const AlbumsScreen = () => {
 
 	const filteredAlbums = useMemo(() => {
 		if (!search) return albums
-		return albums.filter(album => 
+		return albums.filter(album =>
 			album.title.toLowerCase().includes(search.toLowerCase()) ||
 			album.artist.toLowerCase().includes(search.toLowerCase())
 		)
@@ -38,30 +38,43 @@ const AlbumsScreen = () => {
 
 	const fetchAlbums = async (pageNum: number = 1, isRefresh: boolean = false) => {
 		if (isLoading) return
-		
+
 		setIsLoading(true)
 		try {
 			const tokenInfo = await getEmbyToken()
 			if (tokenInfo) {
-				// 使用Emby API获取专辑
-				const result = await searchAlbumInternal('', pageNum) // 空搜索获取所有专辑
-				if (result && result.data) {
-					const newAlbums = result.data.map((album: any) => ({
-						id: album.id,
-						title: album.title,
-						artist: album.artist,
-						artwork: album.artwork,
-						description: album.description,
-						worksNum: album.worksNum
+				// 使用Emby API获取专辑列表
+				const params = {
+					IncludeItemTypes: 'MusicAlbum',
+					Recursive: true,
+					UserId: tokenInfo.userId,
+					StartIndex: (pageNum - 1) * 50,
+					Limit: 50,
+					Fields: 'PrimaryImageAspectRatio,AlbumArtist,ChildCount,ImageTags',
+					SortBy: 'SortName',
+					SortOrder: 'Ascending'
+				}
+
+				const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
+				if (result && result.data && result.data.Items) {
+					const newAlbums = result.data.Items.map((album: any) => ({
+						id: album.Id,
+						title: album.Name || 'Unknown Album',
+						artist: album.AlbumArtist || 'Unknown Artist',
+						artwork: album.ImageTags?.Primary
+							? `${getEmbyConfig()?.url}/Items/${album.Id}/Images/Primary?maxWidth=300&maxHeight=300&tag=${album.ImageTags.Primary}&format=jpg&quality=90`
+							: 'https://via.placeholder.com/300',
+						description: album.Overview || '',
+						worksNum: album.ChildCount || 0
 					}))
-					
+
 					if (isRefresh) {
 						setAlbums(newAlbums)
 					} else {
 						setAlbums(prev => [...prev, ...newAlbums])
 					}
-					
-					setHasMore(!result.isEnd)
+
+					setHasMore(result.data.Items.length === 50)
 					setPage(pageNum + 1)
 				}
 			} else {
@@ -88,7 +101,7 @@ const AlbumsScreen = () => {
 	}
 
 	const renderAlbum = ({ item }: { item: Album }) => (
-		<TouchableOpacity 
+		<TouchableOpacity
 			style={{
 				flexDirection: 'row',
 				padding: 12,
@@ -111,20 +124,20 @@ const AlbumsScreen = () => {
 				}}
 			/>
 			<View style={{ flex: 1, justifyContent: 'center' }}>
-				<Text 
-					style={{ 
-						color: 'white', 
-						fontSize: 16, 
+				<Text
+					style={{
+						color: 'white',
+						fontSize: 16,
 						fontWeight: '600',
-						marginBottom: 4 
+						marginBottom: 4
 					}}
 					numberOfLines={1}
 				>
 					{item.title}
 				</Text>
-				<Text 
-					style={{ 
-						color: 'rgba(255, 255, 255, 0.7)', 
+				<Text
+					style={{
+						color: 'rgba(255, 255, 255, 0.7)',
 						fontSize: 14,
 						marginBottom: 2
 					}}
@@ -133,10 +146,10 @@ const AlbumsScreen = () => {
 					{item.artist}
 				</Text>
 				{item.worksNum && (
-					<Text 
-						style={{ 
-							color: 'rgba(255, 255, 255, 0.5)', 
-							fontSize: 12 
+					<Text
+						style={{
+							color: 'rgba(255, 255, 255, 0.5)',
+							fontSize: 12
 						}}
 					>
 						{item.worksNum} 首歌曲
@@ -170,7 +183,7 @@ const AlbumsScreen = () => {
 				data={filteredAlbums}
 				renderItem={renderAlbum}
 				keyExtractor={(item) => item.id}
-				contentContainerStyle={{ 
+				contentContainerStyle={{
 					paddingHorizontal: screenPadding.horizontal,
 					paddingVertical: 8
 				}}

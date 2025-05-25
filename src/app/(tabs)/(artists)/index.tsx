@@ -1,10 +1,10 @@
 import { screenPadding } from '@/constants/tokens'
+import { getEmbyConfig, getEmbyToken, httpEmby } from '@/helpers/embyApi'
 import { useNavigationSearch } from '@/hooks/useNavigationSearch'
 import { defaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
-import { useMemo, useState, useEffect } from 'react'
-import { ActivityIndicator, ScrollView, View, Text, TouchableOpacity, Image, FlatList } from 'react-native'
-import { searchArtistInternal, getEmbyToken } from '@/helpers/embyApi'
+import { useEffect, useMemo, useState } from 'react'
+import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native'
 
 interface Artist {
 	id: string
@@ -30,37 +30,50 @@ const ArtistsScreen = () => {
 
 	const filteredArtists = useMemo(() => {
 		if (!search) return artists
-		return artists.filter(artist => 
+		return artists.filter(artist =>
 			artist.name.toLowerCase().includes(search.toLowerCase())
 		)
 	}, [search, artists])
 
 	const fetchArtists = async (pageNum: number = 1, isRefresh: boolean = false) => {
 		if (isLoading) return
-		
+
 		setIsLoading(true)
 		try {
 			const tokenInfo = await getEmbyToken()
 			if (tokenInfo) {
-				// 使用Emby API获取艺术家
-				const result = await searchArtistInternal('', pageNum) // 空搜索获取所有艺术家
-				if (result && result.data) {
-					const newArtists = result.data.map((artist: any) => ({
-						id: artist.id,
-						name: artist.name,
-						avatar: artist.avatar,
-						description: artist.description,
-						worksNum: artist.worksNum,
-						fans: artist.fans
+				// 使用Emby API获取艺术家列表
+				const params = {
+					IncludeItemTypes: 'MusicArtist',
+					Recursive: true,
+					UserId: tokenInfo.userId,
+					StartIndex: (pageNum - 1) * 50,
+					Limit: 50,
+					Fields: 'PrimaryImageAspectRatio,ChildCount,ImageTags',
+					SortBy: 'SortName',
+					SortOrder: 'Ascending'
+				}
+
+				const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
+				if (result && result.data && result.data.Items) {
+					const newArtists = result.data.Items.map((artist: any) => ({
+						id: artist.Id,
+						name: artist.Name || 'Unknown Artist',
+						avatar: artist.ImageTags?.Primary
+							? `${getEmbyConfig()?.url}/Items/${artist.Id}/Images/Primary?maxWidth=300&maxHeight=300&tag=${artist.ImageTags.Primary}&format=jpg&quality=90`
+							: 'https://via.placeholder.com/300',
+						description: artist.Overview || '',
+						worksNum: artist.ChildCount || 0,
+						fans: 0 // Emby没有粉丝数概念
 					}))
-					
+
 					if (isRefresh) {
 						setArtists(newArtists)
 					} else {
 						setArtists(prev => [...prev, ...newArtists])
 					}
-					
-					setHasMore(!result.isEnd)
+
+					setHasMore(result.data.Items.length === 50)
 					setPage(pageNum + 1)
 				}
 			} else {
@@ -87,7 +100,7 @@ const ArtistsScreen = () => {
 	}
 
 	const renderArtist = ({ item }: { item: Artist }) => (
-		<TouchableOpacity 
+		<TouchableOpacity
 			style={{
 				flexDirection: 'row',
 				padding: 12,
@@ -110,21 +123,21 @@ const ArtistsScreen = () => {
 				}}
 			/>
 			<View style={{ flex: 1, justifyContent: 'center' }}>
-				<Text 
-					style={{ 
-						color: 'white', 
-						fontSize: 16, 
+				<Text
+					style={{
+						color: 'white',
+						fontSize: 16,
 						fontWeight: '600',
-						marginBottom: 4 
+						marginBottom: 4
 					}}
 					numberOfLines={1}
 				>
 					{item.name}
 				</Text>
 				{item.description && (
-					<Text 
-						style={{ 
-							color: 'rgba(255, 255, 255, 0.7)', 
+					<Text
+						style={{
+							color: 'rgba(255, 255, 255, 0.7)',
 							fontSize: 14,
 							marginBottom: 2
 						}}
@@ -135,9 +148,9 @@ const ArtistsScreen = () => {
 				)}
 				<View style={{ flexDirection: 'row', alignItems: 'center' }}>
 					{item.worksNum && (
-						<Text 
-							style={{ 
-								color: 'rgba(255, 255, 255, 0.5)', 
+						<Text
+							style={{
+								color: 'rgba(255, 255, 255, 0.5)',
 								fontSize: 12,
 								marginRight: 12
 							}}
@@ -146,10 +159,10 @@ const ArtistsScreen = () => {
 						</Text>
 					)}
 					{item.fans && (
-						<Text 
-							style={{ 
-								color: 'rgba(255, 255, 255, 0.5)', 
-								fontSize: 12 
+						<Text
+							style={{
+								color: 'rgba(255, 255, 255, 0.5)',
+								fontSize: 12
 							}}
 						>
 							{item.fans} 播放次数
@@ -184,7 +197,7 @@ const ArtistsScreen = () => {
 				data={filteredArtists}
 				renderItem={renderArtist}
 				keyExtractor={(item) => item.id}
-				contentContainerStyle={{ 
+				contentContainerStyle={{
 					paddingHorizontal: screenPadding.horizontal,
 					paddingVertical: 8
 				}}

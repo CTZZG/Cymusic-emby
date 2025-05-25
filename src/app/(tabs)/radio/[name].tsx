@@ -1,5 +1,6 @@
 import { PlaylistTracksList } from '@/components/PlaylistTracksList'
 import { colors, screenPadding } from '@/constants/tokens'
+import { getEmbyPlaylistTracks } from '@/helpers/embyApi'
 import { getTopListDetail } from '@/helpers/userApi/getMusicSource'
 import { usePlaylists } from '@/store/library'
 import { defaultStyles } from '@/styles'
@@ -18,16 +19,42 @@ const RadioListScreen = () => {
 
 	useEffect(() => {
 		const fetchTopListDetail = async () => {
-			// console.log(playlistName)
 			if (!playlist) {
 				console.warn(`Playlist ${playlistName} was not found!`)
 				setLoading(false)
 				return
 			}
-
-			const detail = await getTopListDetail(playlist)
-			setTopListDetail(detail)
-			// console.log(JSON.stringify(detail));
+		
+			try {
+				// 检查是否为Emby播放列表
+				if (playlist.platform === 'emby') {
+					console.log('Fetching Emby playlist tracks for:', playlist.id)
+					const embyTracks = await getEmbyPlaylistTracks(playlist.id)
+					
+					// 将Emby数据格式化为Track格式
+					const formattedTracks = embyTracks.map((track: any) => ({
+						id: track.id,
+						title: track.title,
+						artist: track.artist,
+						album: track.album,
+						artwork: track.artwork,
+						duration: track.duration,
+						url: track.url || '',
+						platform: 'emby',
+						_source: 'emby'
+					}))
+					
+					setTopListDetail({ musicList: formattedTracks })
+				} else {
+					// 使用原有的QQ音乐播放列表逻辑
+					const detail = await getTopListDetail(playlist)
+					setTopListDetail(detail)
+				}
+			} catch (error) {
+				console.error('Failed to fetch playlist detail:', error)
+				setTopListDetail({ musicList: [] })
+			}
+			
 			setLoading(false)
 		}
 		fetchTopListDetail()

@@ -56,11 +56,11 @@ const mapEmbyTrack = (embyItem: any): TrackWithPlaylist => {
         date: embyItem.date || 'Unknown Release Date',
         artwork: embyItem.artwork || 'http://example.com/default.jpg',
         duration: embyItem.duration || 0,
-        platform: 'emby', // 标记为emby平台
+        platform: embyItem.platform || 'emby', // 标记为emby平台
         // 保留Emby特有的数据
         _albumId: embyItem._albumId,
         _artistId: embyItem._artistId,
-        _source: 'emby'
+        _source: embyItem._source || 'emby'
     }
 }
 export const useLibraryStore = create<LibraryState>((set, get) => ({
@@ -107,12 +107,12 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 			const { page, hasMore, isLoading, allTracks } = get()
 			if (isLoading || (!hasMore && !refresh)) return
 			const PAGE_SIZE = 100
-		
+
 			try {
 				if (refresh || allTracks.length === 0) {
 					// 只在刷新或首次加载时请求数据
 					set({ isLoading: true })
-		
+
 					// 检查Emby配置
 					const tokenInfo = await getEmbyToken()
 					if (!tokenInfo) {
@@ -133,7 +133,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 							SortBy: 'SortName',
 							SortOrder: 'Ascending'
 						}
-						
+
 						const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
 						if (result && result.data && result.data.Items) {
 							const formattedTracks = await Promise.all(
@@ -149,13 +149,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 						}
 					}
 				}
-				
+
 				set({ isLoading: true })
 				const currentPage = refresh ? 1 : page
 				const start = (currentPage - 1) * PAGE_SIZE
 				const end = start + PAGE_SIZE
 				const newTracks = get().allTracks.slice(start, end)
-		
+
 				set((state) => ({
 					tracks: refresh ? newTracks : [...state.tracks, ...newTracks],
 					page: currentPage + 1,
@@ -182,7 +182,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 					UserId: tokenInfo.userId,
 					Fields: 'PrimaryImageAspectRatio,ChildCount,ImageTags'
 				}
-				
+
 				const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params)
 				if (result && result.data && result.data.Items) {
 					const embyPlaylists = result.data.Items.map((playlist: any) => ({
@@ -190,13 +190,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 						name: playlist.Name || 'Unknown Playlist',
 						title: playlist.Name || 'Unknown Playlist',
 						description: playlist.Overview || '',
-						coverImg: playlist.ImageTags?.Primary 
+						coverImg: playlist.ImageTags?.Primary
 							? `${getEmbyConfig()?.url}/Items/${playlist.Id}/Images/Primary?maxWidth=400&maxHeight=400&tag=${playlist.ImageTags.Primary}&format=jpg&quality=90`
 							: 'https://p1.music.126.net/oT-RHuPBJiD7WMoU7WG5Rw==/109951166093489621.jpg',
-						artwork: playlist.ImageTags?.Primary 
+						artwork: playlist.ImageTags?.Primary
 							? `${getEmbyConfig()?.url}/Items/${playlist.Id}/Images/Primary?maxWidth=400&maxHeight=400&tag=${playlist.ImageTags.Primary}&format=jpg&quality=90`
 							: 'https://p1.music.126.net/oT-RHuPBJiD7WMoU7WG5Rw==/109951166093489621.jpg',
-						artworkPreview: playlist.ImageTags?.Primary 
+						artworkPreview: playlist.ImageTags?.Primary
 							? `${getEmbyConfig()?.url}/Items/${playlist.Id}/Images/Primary?maxWidth=200&maxHeight=200&tag=${playlist.ImageTags.Primary}&format=jpg&quality=90`
 							: 'https://p1.music.126.net/oT-RHuPBJiD7WMoU7WG5Rw==/109951166093489621.jpg',
 						platform: 'emby',
@@ -210,7 +210,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 					return
 				}
 			}
-			
+
 			// 如果Emby不可用，回退到原有的QQ音乐播放列表
 			const playlists = await getTopLists()
 			const combinedData = playlists.flatMap((group) =>

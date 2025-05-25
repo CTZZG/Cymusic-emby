@@ -24,7 +24,7 @@ const ALL_SONGS_FIXED_ARTWORK_URL = 'https://p1.music.126.net/oT-RHuPBJiD7WMoU7W
 const FETCH_ALL_LIMIT = 999999;
 
 const EXTERNAL_ARTWORK_CHECK_TIMEOUT_MS = 300;
-const EXTERNAL_API_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+const EXTERNAL_API_USER_AGENT = 'CyMusic/1.0.0';
 
 // 类型定义
 export interface EmbyConfig {
@@ -58,7 +58,7 @@ let globalEmbyDeviceId: string | null = null;
 
 // 工具函数
 function getUserAgent(): string {
-  return `CyMusic-EmbyPlugin/${EMBY_APP_VERSION}`;
+  return `CyMusic/${EMBY_APP_VERSION}`;
 }
 
 function normalize(str: string): string {
@@ -513,4 +513,212 @@ export async function formatArtistItem(embyArtist: any): Promise<any> {
     fans: userData && userData.PlayCount !== undefined ? userData.PlayCount : undefined,
     worksNum: embyArtist.ChildCount,
   };
+}
+
+// 获取播放列表中的歌曲
+export async function getEmbyPlaylistTracks(playlistId: string): Promise<any[]> {
+  const tokenInfo = await getEmbyToken();
+  if (!tokenInfo) return [];
+
+  const params = {
+    ParentId: playlistId,
+    IncludeItemTypes: 'Audio',
+    Recursive: false,
+    UserId: tokenInfo.userId,
+    Fields: 'PrimaryImageAspectRatio,MediaSources,Path,Album,AlbumId,ArtistItems,AlbumArtist,RunTimeTicks,ProviderIds,ImageTags,UserData,ChildCount,AlbumPrimaryImageTag',
+    SortBy: 'SortName',
+    SortOrder: 'Ascending'
+  };
+
+  const result = await httpEmby('GET', `Users/${tokenInfo.userId}/Items`, params);
+  if (!result || !result.data || !result.data.Items) return [];
+
+  const formattedTracks = await Promise.all(
+    result.data.Items.map((item: any) => formatMusicItem(item))
+  );
+
+  return formattedTracks;
+}
+
+// 格式化Emby TrackEvents为LRC格式
+function formatEmbyTrackEventsToLrc(trackEventsData: any): string | null {
+  if (!trackEventsData || !trackEventsData.TrackEvents) return null;
+
+  let lrcContent = '';
+  for (const event of trackEventsData.TrackEvents) {
+    if (event.StartPositionTicks && event.Text) {
+      // 将ticks转换为时间格式 (1 tick = 100 nanoseconds)
+      const totalMs = Math.floor(event.StartPositionTicks / 10000);
+      const minutes = Math.floor(totalMs / 60000);
+      const seconds = Math.floor((totalMs % 60000) / 1000);
+      const centiseconds = Math.floor((totalMs % 1000) / 10);
+
+      const timeTag = `[${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}]`;
+      lrcContent += `${timeTag}${event.Text}\n`;
+    }
+  }
+
+  return lrcContent || null;
+}
+
+// 获取歌词 - 参考南瓜插件实现
+export async function getLyricApi(musicItem: any): Promise<{ rawLrc: string } | null> {
+  const tokenInfo = await getEmbyToken();
+  const config = getEmbyConfig();
+
+  if (tokenInfo && tokenInfo.userId && config?.url && musicItem && musicItem.id) {
+    try {
+      // 第一步：获取音乐项目详情
+      const itemDetailsParams = {
+        UserId: tokenInfo.userId,
+        Fields: 'MediaSources,MediaStreams'
+      };
+
+      const itemDetailsResult = await httpEmby('GET', `Users/${tokenInfo.userId}/Items/${musicItem.id}`, itemDetailsParams);
+
+      if (itemDetailsResult && itemDetailsResult.data) {
+        const itemData = itemDetailsResult.data;
+        let mediaSourceId = null;
+        let subtitleIndex = null;
+        let subtitleCodec = null;
+
+        // 获取MediaSource ID
+        if (itemData.MediaSources && itemData.MediaSources.length > 0) {
+          const preferredSource = itemData.MediaSources.find((s: any) => !s.IsInfiniteStream) || itemData.MediaSources[0];
+          if (preferredSource) mediaSourceId = preferredSource.Id;
+        }
+
+        // 如果没有找到MediaSource，尝试通过PlaybackInfo获取
+        if (!mediaSourceId) {
+          const playbackInfoRequestBody = { UserId: tokenInfo.userId, Id: musicItem.id };
+          const playbackDataResult = await httpEmby('POST', `Items/${musicItem.id}/PlaybackInfo`, {}, playbackInfoRequestBody);
+          if (playbackDataResult && playbackDataResult.data && playbackDataResult.data.MediaSources && playbackDataResult.data.MediaSources.length > 0) {
+            const preferredPbSource = playbackDataResult.data.MediaSources.find((s: any) => !s.IsInfiniteStream) || playbackDataResult.data.MediaSources[0];
+            if (preferredPbSource) mediaSourceId = preferredPbSource.Id;
+          }
+        }
+
+        // 查找字幕流
+        if (itemData.MediaStreams) {
+          const lrcStream = itemData.MediaStreams.find((stream: any) => {
+            return stream.Type === 'Subtitle' && stream.Codec && stream.Codec.toLowerCase() === 'lrc';
+          });
+
+          if (lrcStream) {
+            subtitleIndex = lrcStream.Index;
+            subtitleCodec = 'lrc';
+          } else {
+            const textSubtitleStream = itemData.MediaStreams.find((stream: any) => {
+              return stream.Type === 'Subtitle' && ((stream.Codec && stream.Codec.toLowerCase() === 'text') || !lrcStream);
+            });
+            if (textSubtitleStream) {
+              subtitleIndex = textSubtitleStream.Index;
+              subtitleCodec = textSubtitleStream.Codec;
+            }
+          }
+        }
+
+        // 如果找到了字幕流，尝试获取字幕内容
+        if (mediaSourceId && subtitleIndex !== null) {
+          const streamJsPath = `/Items/${musicItem.id}/${mediaSourceId}/Subtitles/${subtitleIndex}/Stream.js`;
+          const streamJsUrl = `${config.url}${streamJsPath}`;
+
+          const queryParams = {
+            'MediaBrowser Client': EMBY_CLIENT_NAME,
+            'Device': EMBY_DEVICE_NAME,
+            'DeviceId': config.deviceId || 'cymusic',
+            'Version': EMBY_APP_VERSION,
+            'Token': tokenInfo.token
+          };
+
+          const queryString = Object.entries(queryParams)
+            .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+            .join('&');
+
+          const headers = {
+            'X-Emby-Authorization': `Emby Client="${EMBY_CLIENT_NAME}", Device="${EMBY_DEVICE_NAME}", DeviceId="${config.deviceId || 'cymusic'}", Version="${EMBY_APP_VERSION}", Token="${tokenInfo.token}"`,
+            'Accept': 'application/json, text/javascript, */*',
+            'User-Agent': getUserAgent()
+          };
+
+          try {
+            const response = await fetch(`${streamJsUrl}?${queryString}`, {
+              method: 'GET',
+              headers: headers,
+              signal: AbortSignal.timeout(10000)
+            });
+
+            if (response.ok) {
+              const streamData = await response.json();
+              if (streamData && streamData.TrackEvents) {
+                const lrcContent = formatEmbyTrackEventsToLrc(streamData);
+                if (lrcContent) {
+                  return { rawLrc: he.decode(lrcContent) };
+                }
+              }
+            }
+          } catch (streamError) {
+            console.log('Failed to get subtitle stream:', streamError);
+          }
+        }
+      }
+    } catch (itemDetailsError) {
+      console.log('Failed to get item details:', itemDetailsError);
+    }
+
+    // 第二步：尝试通过Lyrics API获取歌词
+    try {
+      const lyricDataResult = await httpEmby('GET', `Items/${musicItem.id}/Lyrics`, { UserId: tokenInfo.userId });
+      if (lyricDataResult && lyricDataResult.data) {
+        const lyricData = lyricDataResult.data;
+        if (lyricData && lyricData.Lyrics && lyricData.Lyrics.length > 0) {
+          const lrcLyric = lyricData.Lyrics.find((l: any) => {
+            return l.Format && l.Format.toLowerCase() === 'lrc' && l.Type === 'Lyric';
+          });
+          if (lrcLyric && lrcLyric.Text) {
+            return { rawLrc: he.decode(lrcLyric.Text) };
+          }
+        }
+      }
+    } catch (e) {
+      console.log('Failed to get lyrics from Lyrics API:', e);
+    }
+  }
+
+  // 第三步：如果Emby没有歌词，尝试外部歌词API
+  if (!musicItem.title) return null;
+
+  try {
+    let queryParams = [];
+    queryParams.push(`title=${encodeURIComponent(musicItem.title)}`);
+
+    const artist = musicItem.artist;
+    if (artist && !['unknown artist', 'various artists'].includes(artist.toLowerCase())) {
+      queryParams.push(`artist=${encodeURIComponent(artist)}`);
+    }
+
+    const album = musicItem.album;
+    if (album && !['unknown album'].includes(album.toLowerCase())) {
+      queryParams.push(`album=${encodeURIComponent(album)}`);
+    }
+
+    const response = await fetch(`${LYRICS_API_BASE_URL}/lyrics?${queryParams.join('&')}`, {
+      method: 'GET',
+      headers: { 'User-Agent': EXTERNAL_API_USER_AGENT },
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (response.ok) {
+      const data = await response.text();
+      if (data && typeof data === 'string' && data.trim()) {
+        if (!data.toLowerCase().includes('not found') && data.length > 10) {
+          return { rawLrc: he.decode(data) };
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Failed to get lyrics from external API:', e);
+  }
+
+  return null;
 }

@@ -37,6 +37,7 @@ import { fakeAudioMp3Uri } from '@/constants/images'
 import {
 	getEmbyConfig,
 	getEmbyToken,
+	getLyricApi,
 	httpEmby
 } from '@/helpers/embyApi'
 import { nowLanguage } from '@/utils/i18n'
@@ -816,7 +817,7 @@ const getEmbyPlayUrl = async (musicItem: IMusic.IMusicItem): Promise<string | nu
 
         // 构建Emby播放URL
         const playUrl = `${config.url}/Audio/${musicItem.id}/stream?UserId=${tokenInfo.userId}&DeviceId=${config.deviceId || 'cymusic'}&api_key=${tokenInfo.token}`
-        
+
         logInfo('Generated Emby play URL:', playUrl)
         return playUrl
 
@@ -833,8 +834,8 @@ const getEmbyPlayUrl = async (musicItem: IMusic.IMusicItem): Promise<string | nu
  * @param isPaused 是否暂停
  */
 const reportEmbyPlaybackProgress = async (
-    musicItem: IMusic.IMusicItem, 
-    positionTicks: number, 
+    musicItem: IMusic.IMusicItem,
+    positionTicks: number,
     isPaused: boolean = false
 ) => {
     try {
@@ -1082,7 +1083,19 @@ if (!source) {
 		// 9. 设置音源
 		await setTrackSource(track as Track)
 		// 4.1 刷新歌词信息
-		const lyc = await myGetLyric(musicItem)
+		let lyc;
+		if (musicItem.platform === 'emby' || musicItem._source === 'emby') {
+    		// 使用Emby歌词获取
+    		const embyLyric = await getLyricApi(musicItem)
+    		if (embyLyric && embyLyric.rawLrc) {
+        		lyc = { lyric: embyLyric.rawLrc }
+    		} else {
+        		lyc = { lyric: '[00:00.00]暂无歌词' }
+    		}
+		} else {
+    		// 使用原有的歌词获取方式
+    		lyc = await myGetLyric(musicItem)
+		}
 		// console.debug(lyc.lyric);
 		nowLyricState.setValue(lyc.lyric)
 		// 9.1 如果需要缓存,且不是假音频,且不是本地文件
