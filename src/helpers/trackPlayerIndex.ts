@@ -241,6 +241,10 @@ const getFakeNextTrack = () => {
 				if (!_.artwork?.trim()?.length) {
 					_.artwork = undefined
 				}
+				// 为Emby音乐的假音频也设置User-Agent
+				if (_.platform === 'emby' || _._source === 'emby') {
+					_.userAgent = 'CyMusic/1.1.7'
+				}
 			})
 			return a
 		} else {
@@ -464,6 +468,11 @@ const pause = async () => {
 const setTrackSource = async (track: Track, autoPlay = true) => {
 	if (!track.artwork?.trim()?.length) {
 		track.artwork = undefined
+	}
+
+	// 为Emby音乐设置自定义User-Agent
+	if (track.platform === 'emby' || track._source === 'emby') {
+		track.userAgent = 'CyMusic/1.1.7'
 	}
 
 	//播放器队列加入track 和一个假音频，假音频的信息为实际下一首音乐的信息

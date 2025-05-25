@@ -25,7 +25,9 @@ import {
 	ActivityIndicator,
 	Alert,
 	Image,
+	KeyboardAvoidingView,
 	Linking,
+	Platform,
 	ScrollView,
 	StyleSheet,
 	Switch,
@@ -914,105 +916,124 @@ const SettingModal = () => {
 	// Emby配置模态框组件
 	const EmbyConfigModal = () => (
 		<View style={styles.modalOverlay}>
-			<View style={styles.modalContainer}>
-				<Text style={styles.modalTitle}>Emby服务器配置</Text>
+			<KeyboardAvoidingView
+				behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+				style={styles.keyboardAvoidingView}
+			>
+				<ScrollView
+					contentContainerStyle={styles.scrollContainer}
+					keyboardShouldPersistTaps="handled"
+					showsVerticalScrollIndicator={false}
+				>
+					<View style={styles.modalContainer}>
+						<Text style={styles.modalTitle}>Emby服务器配置</Text>
 
-				<View style={styles.inputContainer}>
-					<Text style={styles.inputLabel}>服务器地址 *</Text>
-					<TextInput
-						style={styles.textInput}
-						value={embyUrl}
-						onChangeText={setEmbyUrl}
-						placeholder="http://192.168.1.100:8096"
-						placeholderTextColor={colors.textMuted}
-						autoCapitalize="none"
-						autoCorrect={false}
-					/>
-				</View>
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>服务器地址 *</Text>
+							<TextInput
+								style={styles.textInput}
+								value={embyUrl}
+								onChangeText={setEmbyUrl}
+								placeholder="http://192.168.1.100:8096"
+								placeholderTextColor={colors.textMuted}
+								autoCapitalize="none"
+								autoCorrect={false}
+								keyboardType="url"
+								returnKeyType="next"
+								blurOnSubmit={false}
+							/>
+						</View>
 
-				<View style={styles.inputContainer}>
-					<Text style={styles.inputLabel}>用户名 *</Text>
-					<TextInput
-						style={styles.textInput}
-						value={embyUsername}
-						onChangeText={setEmbyUsername}
-						placeholder="输入Emby用户名"
-						placeholderTextColor={colors.textMuted}
-						autoCapitalize="none"
-						autoCorrect={false}
-					/>
-				</View>
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>用户名 *</Text>
+							<TextInput
+								style={styles.textInput}
+								value={embyUsername}
+								onChangeText={setEmbyUsername}
+								placeholder="输入Emby用户名"
+								placeholderTextColor={colors.textMuted}
+								autoCapitalize="none"
+								autoCorrect={false}
+								returnKeyType="next"
+								blurOnSubmit={false}
+							/>
+						</View>
 
-				<View style={styles.inputContainer}>
-					<Text style={styles.inputLabel}>密码 *</Text>
-					<TextInput
-						style={styles.textInput}
-						value={embyPassword}
-						onChangeText={setEmbyPassword}
-						placeholder="输入Emby密码"
-						placeholderTextColor={colors.textMuted}
-						secureTextEntry={true}
-						autoCapitalize="none"
-						autoCorrect={false}
-					/>
-				</View>
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>密码 *</Text>
+							<TextInput
+								style={styles.textInput}
+								value={embyPassword}
+								onChangeText={setEmbyPassword}
+								placeholder="输入Emby密码"
+								placeholderTextColor={colors.textMuted}
+								secureTextEntry={true}
+								autoCapitalize="none"
+								autoCorrect={false}
+								returnKeyType="next"
+								blurOnSubmit={false}
+							/>
+						</View>
 
-				<View style={styles.inputContainer}>
-					<Text style={styles.inputLabel}>设备ID (可选)</Text>
-					<TextInput
-						style={styles.textInput}
-						value={embyDeviceId}
-						onChangeText={setEmbyDeviceId}
-						placeholder="留空将自动生成"
-						placeholderTextColor={colors.textMuted}
-						autoCapitalize="none"
-						autoCorrect={false}
-					/>
-				</View>
+						<View style={styles.inputContainer}>
+							<Text style={styles.inputLabel}>设备ID (可选)</Text>
+							<TextInput
+								style={styles.textInput}
+								value={embyDeviceId}
+								onChangeText={setEmbyDeviceId}
+								placeholder="留空将自动生成"
+								placeholderTextColor={colors.textMuted}
+								autoCapitalize="none"
+								autoCorrect={false}
+								returnKeyType="done"
+							/>
+						</View>
 
-				<View style={styles.switchContainer}>
-					<Text style={styles.inputLabel}>上传歌单到Emby</Text>
-					<Switch
-						value={embyUploadPlaylist}
-						onValueChange={setEmbyUploadPlaylist}
-						trackColor={{ false: colors.textMuted, true: colors.primary }}
-						thumbColor={embyUploadPlaylist ? colors.primary : colors.textMuted}
-					/>
-				</View>
+						<View style={styles.switchContainer}>
+							<Text style={styles.inputLabel}>上传歌单到Emby</Text>
+							<Switch
+								value={embyUploadPlaylist}
+								onValueChange={setEmbyUploadPlaylist}
+								trackColor={{ false: colors.textMuted, true: colors.primary }}
+								thumbColor={embyUploadPlaylist ? colors.primary : colors.textMuted}
+							/>
+						</View>
 
-				{embyConfig.error && (
-					<Text style={styles.errorText}>{embyConfig.error}</Text>
-				)}
+						{embyConfig.error && (
+							<Text style={styles.errorText}>{embyConfig.error}</Text>
+						)}
 
-				<View style={styles.modalButtons}>
-					<TouchableOpacity
-						style={[styles.modalButton, styles.cancelButton]}
-						onPress={() => setShowEmbyConfig(false)}
-					>
-						<Text style={styles.cancelButtonText}>取消</Text>
-					</TouchableOpacity>
+						<View style={styles.modalButtons}>
+							<TouchableOpacity
+								style={[styles.modalButton, styles.cancelButton]}
+								onPress={() => setShowEmbyConfig(false)}
+							>
+								<Text style={styles.cancelButtonText}>取消</Text>
+							</TouchableOpacity>
 
-					<TouchableOpacity
-						style={[styles.modalButton, styles.testButton]}
-						onPress={handleEmbyConfigTest}
-						disabled={embyConfig.isLoading}
-					>
-						<Text style={styles.testButtonText}>
-							{embyConfig.isLoading ? '测试中...' : '测试连接'}
-						</Text>
-					</TouchableOpacity>
+							<TouchableOpacity
+								style={[styles.modalButton, styles.testButton]}
+								onPress={handleEmbyConfigTest}
+								disabled={embyConfig.isLoading}
+							>
+								<Text style={styles.testButtonText}>
+									{embyConfig.isLoading ? '测试中...' : '测试连接'}
+								</Text>
+							</TouchableOpacity>
 
-					<TouchableOpacity
-						style={[styles.modalButton, styles.saveButton]}
-						onPress={handleEmbyConfigSave}
-						disabled={embyConfig.isLoading || !embyUrl.trim() || !embyUsername.trim() || !embyPassword.trim()}
-					>
-						<Text style={styles.saveButtonText}>
-							{embyConfig.isLoading ? '保存中...' : '保存'}
-						</Text>
-					</TouchableOpacity>
-				</View>
-			</View>
+							<TouchableOpacity
+								style={[styles.modalButton, styles.saveButton]}
+								onPress={handleEmbyConfigSave}
+								disabled={embyConfig.isLoading || !embyUrl.trim() || !embyUsername.trim() || !embyPassword.trim()}
+							>
+								<Text style={styles.saveButtonText}>
+									{embyConfig.isLoading ? '保存中...' : '保存'}
+								</Text>
+							</TouchableOpacity>
+						</View>
+					</View>
+				</ScrollView>
+			</KeyboardAvoidingView>
 		</View>
 	)
 
@@ -1235,6 +1256,16 @@ const styles = StyleSheet.create({
 		color: 'white',
 		fontSize: 16,
 		fontWeight: '500',
+	},
+	keyboardAvoidingView: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	scrollContainer: {
+		flexGrow: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 })
 

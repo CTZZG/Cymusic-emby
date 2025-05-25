@@ -48,24 +48,6 @@ const TabsNavigation = () => {
 					}}
 				/>
 				<Tabs.Screen
-					name="(albums)"
-					options={{
-						title: i18n.t('appTab.albums') || 'Albums',
-						tabBarIcon: ({ color }) => (
-							<Ionicons name="albums" size={24} color={color} />
-						),
-					}}
-				/>
-				<Tabs.Screen
-					name="(artists)"
-					options={{
-						title: i18n.t('appTab.artists') || 'Artists',
-						tabBarIcon: ({ color }) => (
-							<Ionicons name="person" size={24} color={color} />
-						),
-					}}
-				/>
-				<Tabs.Screen
 					name="radio"
 					options={{
 						title: i18n.t('appTab.radio'),

@@ -1,11 +1,12 @@
 import { colors, screenPadding } from '@/constants/tokens'
 import { getHomeRecommendations } from '@/helpers/embyApi'
+import myTrackPlayer from '@/helpers/trackPlayerIndex'
+import { setPlayList } from '@/store/playList'
 import { defaultStyles } from '@/styles'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Dimensions, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import TrackPlayer from 'react-native-track-player'
 
 const { width } = Dimensions.get('window')
 const ITEM_WIDTH = (width - 60) / 2 // 减去padding和间距
@@ -43,30 +44,15 @@ const SongsScreen = () => {
 
 	const handlePlayMusic = useCallback(async (item: any, playlist: any[]) => {
 		try {
-			// 清空当前播放列表
-			await TrackPlayer.reset()
+			// 使用CyMusic的正确播放方法
+			// 1. 设置播放列表
+			setPlayList(playlist as IMusic.IMusicItem[])
 
-			// 添加整个播放列表
-			const tracks = playlist.map((track, index) => ({
-				id: track.id,
-				url: track.url || '',
-				title: track.title,
-				artist: track.artist,
-				artwork: track.artwork,
-				album: track.album,
-				duration: track.duration,
-			}))
-
-			await TrackPlayer.add(tracks)
-
-			// 找到当前点击的歌曲在列表中的位置
-			const currentIndex = playlist.findIndex(track => track.id === item.id)
-			if (currentIndex >= 0) {
-				await TrackPlayer.skip(currentIndex)
-			}
-
-			// 开始播放
-			await TrackPlayer.play()
+			// 2. 使用myTrackPlayer播放指定歌曲
+			await myTrackPlayer.playWithReplacePlayList(
+				item as IMusic.IMusicItem,
+				playlist as IMusic.IMusicItem[]
+			)
 		} catch (error) {
 			console.error('Failed to play music:', error)
 		}
