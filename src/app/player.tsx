@@ -466,7 +466,7 @@ const PlayerScreen = () => {
 
 								<PlayerProgressBar style={{ marginTop: 32 }} onSeek={handleSeek} />
 
-								<PlayerControls style={{ marginTop: 40 }} />
+								<PlayerControls style={{ marginTop: 20, marginBottom: 20 }} />
 							</View>
 
 							<PlayerVolumeBar style={{ marginTop: 'auto', marginBottom: 30 }} />
