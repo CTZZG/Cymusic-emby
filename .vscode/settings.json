@@ -1,0 +1,33 @@
+{
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.codeActionsOnSave": {
+		"source.fixAll": "always",
+		"source.organizeImports": "always"
+	},
+	"editor.wordWrap": "on",
+	"svg.preview.background": "custom",
+	"files.associations": {
+		"__bit_reference": "cpp",
+		"__hash_table": "cpp",
+		"__split_buffer": "cpp",
+		"__tree": "cpp",
+		"array": "cpp",
+		"deque": "cpp",
+		"hash_map": "cpp",
+		"hash_set": "cpp",
+		"initializer_list": "cpp",
+		"ios": "cpp",
+		"list": "cpp",
+		"map": "cpp",
+		"set": "cpp",
+		"string": "cpp",
+		"string_view": "cpp",
+		"unordered_map": "cpp",
+		"unordered_set": "cpp",
+		"valarray": "cpp",
+		"vector": "cpp",
+		"*.ipp": "cpp"
+	},
+	"cSpell.words": ["abslist", "flac", "hilight", "TARGETID"]
+}

@@ -1,0 +1,157 @@
+{
+	"settings": {
+		"title": "Settings",
+		"sections": {
+			"appInfo": "App Information",
+			"audioSettings": "Audio Settings",
+			"customSource": "Custom Music Source",
+			"qualitySelection": "Quality Selection"
+		},
+		"items": {
+			"version": "Version",
+			"checkUpdate": "Check for Updates",
+			"projectLink": "Project Link",
+			"clearCache": "Clear Cache",
+			"viewLogs": "View Logs",
+			"clearPlaylist": "Clear Playlist",
+			"autoCacheLocal": "Auto Cache Songs Locally",
+			"switchSource": "Switch Source",
+			"selectSource": "Select Source",
+			"sourceStatus": "Source Status",
+			"deleteSource": "Delete Source",
+			"selectDelete": "Select Delete",
+			"importSource": "Import Source",
+			"currentQuality": "Current Quality",
+			"changeLanguage": "Change Language",
+			"normal": "Normal",
+			"exception": "Exception",
+			"test": "Test",
+			"testSources": "Test All Sources",
+			"isCachedIconVisible": "isCachedIconVisible",
+			"songsNumsToLoad": "Songs Nums to Load"
+		},
+		"actions": {
+			"import": {
+				"title": "Import Music Source",
+				"fromFile": "Import from File",
+				"fromUrl": "Import from URL"
+			},
+			"autoCacheLocal": {
+				"yes": "Yes",
+				"no": "No"
+			},
+			"isCachedIconVisible": {
+				"yes": "Yes",
+				"no": "No"
+			},
+			"clearPlaylist": {
+				"title": "Clear Playlist",
+				"message": "Are you sure you want to clear the playlist?",
+				"cancel": "Cancel",
+				"confirm": "Confirm"
+			},
+			"checkUpdate": {
+				"checking": "Checking for updates",
+				"available": "New version available",
+				"message": "New version available",
+				"notAvailable": "Already the latest version",
+				"notAvailableMessage": "Current is already the latest version",
+				"error": "Update check failed",
+				"ok": "OK",
+				"cancel": "Cancel"
+			},
+			"cache": {
+				"success": "Success",
+				"successMessage": "Cache has been cleared",
+				"error": "Failed",
+				"errorMessage": "Failed to clear cache"
+			},
+			"delete": {
+				"delete": "Delete",
+				"selectDelete": "Select Delete"
+			}
+		},
+		"placeholders": {
+			"enterSourceUrl": "Please enter the source URL"
+		}
+	},
+	"logScreen": {
+		"title": "Application Logs",
+		"actions": {
+			"share": "Share",
+			"clear": "Clear"
+		},
+		"empty": "No logs recorded yet",
+		"details": {
+			"title": "Log Details"
+		},
+		"copy": "Copied",
+		"copyMessage": "Log content has been copied to the clipboard",
+		"shareError": "Failed to share logs"
+	},
+	"appTab": {
+		"songs": "Songs",
+		"search": "Search",
+		"radio": "Radio",
+		"favorites": "Favorites",
+		"favoritesSongs": "Favorite Songs",
+		"localOrCachedSongs": "Local/Cached Songs"
+	},
+	"addToPlaylist": {
+		"title": "Import Playlist",
+		"placeholder": "Please enter playlist link",
+		"import": "Import"
+	},
+	"find": {
+		"inRadio": "Find in Radio",
+		"inSearch": "Find Songs or Artists Online",
+		"inSongs": "Find in Songs",
+		"inFavorites": "Find in Favorites",
+		"noResults": "No results found",
+		"noMoreResults": "No more results",
+		"cancel": "Cancel",
+		"inPlaylist": "Find in Playlist",
+		"songs": "Songs",
+		"artists": "Artists"
+	},
+	"playButton": {
+		"play": "Play",
+		"shuffle": "Shuffle",
+		"delete": "Delete",
+		"import": "Import",
+		"out": "Out",
+		"cancel": "Cancel",
+		"selectAll": "All"
+	},
+	"player": {
+		"songOptions": "Song Options",
+		"closeAfter": "Close After",
+		"setTimingClose": "Set Timing Close",
+		"inputMinutes": "Please enter minutes",
+		"share": "Share",
+		"download": "Download",
+		"addToPlaylist": "Add to Playlist",
+		"showLyrics": "Show Lyrics",
+		"showAlbum": "Show Album",
+		"like": "Like",
+		"cancel": "Cancel",
+		"confirm": "Confirm",
+		"playingList": "Playing List",
+		"minutes": "Minutes",
+		"custom": "Custom",
+		"selectArtist": "Select Artist",
+		"error": {
+			"title": "Error",
+			"minutesErrorMessage": "Please enter a valid number of minutes"
+		}
+	},
+	"menu": {
+		"addToPlayingList": "Add to PlayingList",
+		"addToFavorites": "Add to Favorites",
+		"showArtist": "Show Artist",
+		"addToPlaylist": "Add to Playlist",
+		"removeFromFavorites": "Remove from Favorites",
+		"removeFromPlayingList": "Remove from PlayingList",
+		"delete": "Delete"
+	}
+}

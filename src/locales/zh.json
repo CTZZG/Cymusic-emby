@@ -1,0 +1,159 @@
+{
+	"settings": {
+		"title": "设置",
+		"sections": {
+			"appInfo": "应用信息",
+			"audioSettings": "音频设置",
+			"customSource": "自定义音源",
+			"qualitySelection": "音质选择"
+		},
+		"items": {
+			"version": "版本号",
+			"checkUpdate": "检查更新",
+			"projectLink": "项目链接",
+			"clearCache": "清空缓存",
+			"viewLogs": "查看日志",
+			"clearPlaylist": "清空待播清单",
+			"autoCacheLocal": "自动缓存歌曲到本地",
+			"switchSource": "切换音源",
+			"selectSource": "选择音源",
+			"sourceStatus": "音源状态",
+			"deleteSource": "删除音源",
+			"selectDelete": "选择删除",
+			"importSource": "导入音源",
+			"currentQuality": "当前音质",
+			"changeLanguage": "切换语言",
+			"normal": "正常",
+			"exception": "异常",
+			"test": "测试",
+			"testSources": "测试所有音源",
+			"isCachedIconVisible": "是否显示已缓存图标",
+			"songsNumsToLoad": "首页播放歌曲数量"
+		},
+		"actions": {
+			"import": {
+				"title": "导入音源",
+				"fromFile": "从文件导入",
+				"fromUrl": "从URL导入"
+			},
+			"autoCacheLocal": {
+				"yes": "是",
+				"no": "否"
+			},
+			"isCachedIconVisible": {
+				"yes": "是",
+				"no": "否"
+			},
+			"clearPlaylist": {
+				"title": "清空待播清单",
+				"message": "确定要清空待播清单吗？",
+				"cancel": "取消",
+				"confirm": "确定"
+			},
+			"checkUpdate": {
+				"checking": "检查更新中",
+				"available": "发现新版本",
+				"message": "发现新版本",
+				"notAvailable": "已是最新版本",
+				"notAvailableMessage": "当前已是最新版本，无需更新",
+				"error": "检查更新失败",
+				"ok": "确定",
+				"cancel": "取消",
+				"errorMessage": "无法检查更新，请稍后再试"
+			},
+			"cache": {
+				"success": "成功",
+				"successMessage": "缓存已清理",
+				"error": "失败",
+				"errorMessage": "缓存清理失败"
+			},
+			"delete": {
+				"delete": "删除",
+				"selectDelete": "选择删除"
+			}
+		},
+		"placeholders": {
+			"enterSourceUrl": "请输入音源 URL"
+		}
+	},
+	"logScreen": {
+		"title": "应用日志",
+		"actions": {
+			"share": "分享",
+			"clear": "清除"
+		},
+		"empty": "暂无日志记录",
+		"details": {
+			"title": "日志详情"
+		},
+		"copy": "已复制",
+		"copyMessage": "日志内容已复制到剪贴板",
+		"shareError": "分享日志失败"
+	},
+	"appTab": {
+		"songs": "音乐",
+		"search": "搜索",
+		"radio": "广播",
+		"favorites": "收藏",
+		"favoritesSongs": "喜欢的歌曲",
+		"localOrCachedSongs": "本地/缓存的歌曲"
+	},
+	"addToPlaylist": {
+		"title": "导入歌单",
+		"placeholder": "请输入歌单链接",
+		"import": "导入"
+	},
+	"find": {
+		"inRadio": "在广播中搜索",
+		"inSearch": "在线搜索歌曲或歌手",
+		"inSongs": "在歌曲中搜索",
+		"inFavorites": "在收藏中搜索",
+		"noResults": "没有找到结果",
+		"noMoreResults": "没有更多结果",
+		"cancel": "取消",
+		"inPlaylist": "在歌单中搜索",
+		"songs": "歌曲",
+		"artists": "歌手"
+	},
+	"playButton": {
+		"play": "播放",
+		"shuffle": "随机",
+		"delete": "删除",
+		"import": "导入",
+		"out": "导出",
+		"cancel": "取消",
+		"selectAll": "全选"
+	},
+	"player": {
+		"songOptions": "歌曲选项",
+		"closeAfter": "定时关闭",
+		"setTimingClose": "设置定时关闭",
+		"inputMinutes": "请输入分钟数",
+		"share": "分享歌曲",
+		"download": "下载",
+		"addToPlaylist": "添加到歌单",
+		"showLyrics": "查看歌词",
+		"showAlbum": "显示专辑",
+		"like": "喜欢",
+		"playingList": "播放列表",
+		"minutes": "分钟",
+		"custom": "自定义",
+		"cancel": "取消",
+		"confirm": "确定",
+		"selectArtist": "选择歌手",
+		"error": {
+			"title": "错误",
+			"minutesErrorMessage": "请输入有效的分钟数"
+		}
+	},
+	"menu": {
+		"addToPlayingList": "添加到播放列表",
+		"addToFavorites": "添加到喜欢",
+		"removeFromFavorites": "从喜欢移除",
+		"removeFromPlayingList": "从播放列表移除",
+		"showArtist": "查看歌手",
+		"addToPlaylist": "添加到歌单",
+
+		"delete": "删除"
+	}
+}

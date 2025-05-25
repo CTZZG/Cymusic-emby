@@ -1,0 +1,64 @@
+{
+	"expo": {
+		"name": "CyMusic",
+		"slug": "CyMusic",
+		"version": "1.1.7",
+		"orientation": "portrait",
+		"icon": "./assets/1024.png",
+		"userInterfaceStyle": "dark",
+		"scheme": "cymusic",
+		"splash": {
+			"image": "./assets/splash.png",
+			"resizeMode": "cover",
+			"backgroundColor": "#000"
+		},
+		"assetBundlePatterns": ["**/*"],
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.music.player.gyc",
+			"usesIcloudStorage": false,
+			"infoPlist": {
+				"UIBackgroundModes": ["audio"],
+				"UIFileSharingEnabled": true,
+				"LSSupportsOpeningDocumentsInPlace": true,
+				"NSAppTransportSecurity": {
+					"NSAllowsArbitraryLoads": true
+				},
+				"CADisableMinimumFrameDurationOnPhone": true
+			},
+			"splash": {
+				"image": "./assets/splash.png",
+				"resizeMode": "cover",
+				"backgroundColor": "#000"
+			}
+		},
+		"android": {
+			"adaptiveIcon": {
+				"foregroundImage": "./assets/adaptive-icon.png",
+				"backgroundColor": "#000"
+			},
+			"package": "com.music.player.gyc"
+		},
+		"web": {
+			"favicon": "./assets/favicon.png"
+		},
+		"plugins": [
+			"expo-router",
+			"expo-localization",
+			[
+				"expo-share-intent",
+				{
+					"iosActivationRules": {
+						"NSExtensionActivationSupportsFileWithMaxCount": 1,
+						"NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+						"NSExtensionActivationSupportsText": 1
+					}
+				}
+			]
+		],
+		"experiments": {
+			"typedRoutes": true,
+			"tsconfigPaths": true
+		}
+	}
+}

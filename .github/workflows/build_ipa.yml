@@ -1,0 +1,149 @@
+name: Build Unsigned iOS IPA
+
+on:
+  workflow_dispatch: # 允许手动触发
+
+env:
+  XCODE_WORKSPACE_NAME: CyMusic.xcworkspace
+  XCODE_SCHEME_NAME: CyMusic
+
+jobs:
+  build:
+    name: Build Unsigned IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+
+      - name: Set up Ruby (for CocoaPods)
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
+
+      - name: Get Yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Yarn packages
+        uses: actions/cache@v4
+        id: yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install JavaScript dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods dependencies
+        working-directory: ./ios
+        run: pod install
+
+      - name: 构建 iOS Archive (尝试不签名)
+        working-directory: ./ios
+        run: |
+          echo "Attempting to archive with Workspace: ${{ env.XCODE_WORKSPACE_NAME }} and Scheme: ${{ env.XCODE_SCHEME_NAME }}"
+          xcodebuild archive \
+            -workspace "${{ env.XCODE_WORKSPACE_NAME }}" \
+            -scheme "${{ env.XCODE_SCHEME_NAME }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "${{ github.workspace }}/build/ios/archive/${{ env.XCODE_SCHEME_NAME }}.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM=""
+
+      - name: 定位 .app 文件路径
+        id: find_app
+        run: |
+          ARCHIVE_PATH_ABS="${{ github.workspace }}/build/ios/archive/${{ env.XCODE_SCHEME_NAME }}.xcarchive"
+          APP_DIR_IN_ARCHIVE="${ARCHIVE_PATH_ABS}/Products/Applications"
+          
+          echo "Searching for .app in: ${APP_DIR_IN_ARCHIVE}"
+          
+          if [ ! -d "$APP_DIR_IN_ARCHIVE" ]; then
+            echo "错误：Archive 中的 Products/Applications/ 目录不存在。"
+            echo "--- Listing contents of ${ARCHIVE_PATH_ABS}/Products/ (if exists) ---"
+            ls -R "${ARCHIVE_PATH_ABS}/Products/" || echo "Archive Products/ 目录不存在或无法访问."
+            echo "--- Listing contents of ${ARCHIVE_PATH_ABS} (if exists) ---"
+            ls -R "${ARCHIVE_PATH_ABS}" || echo "Archive 目录不存在或无法访问."
+            exit 1
+          fi
+
+          APP_PATH_IN_ARCHIVE=$(find "${APP_DIR_IN_ARCHIVE}" -name "*.app" -type d -maxdepth 1 -print -quit)
+          
+          if [ -z "$APP_PATH_IN_ARCHIVE" ]; then
+            echo "错误：在 ${APP_DIR_IN_ARCHIVE} 中未找到 .app 文件包。"
+            echo "--- Listing contents of ${APP_DIR_IN_ARCHIVE} ---"
+            ls -R "${APP_DIR_IN_ARCHIVE}"
+            exit 1
+          fi
+          
+          echo "APP_FULL_PATH=${APP_PATH_IN_ARCHIVE}" >> $GITHUB_ENV
+          echo ".app 文件路径 (绝对路径): ${APP_PATH_IN_ARCHIVE}"
+          echo "Contents of .app directory:"
+          ls -la "${APP_PATH_IN_ARCHIVE}"
+
+      - name: 创建未签名的 IPA 包
+        run: |
+          APP_FULL_PATH_ENV="${{ env.APP_FULL_PATH }}"
+
+          if [ -z "$APP_FULL_PATH_ENV" ]; then
+            echo "错误: APP_FULL_PATH 环境变量未设置或为空。"
+            exit 1
+          fi
+          
+          echo "Using .app path from env: ${APP_FULL_PATH_ENV}"
+
+          APP_NAME_NO_EXT=$(basename "${APP_FULL_PATH_ENV}" .app)
+          IPA_FILENAME_ONLY="${APP_NAME_NO_EXT}-unsigned-${{ github.run_number }}.ipa" # 只是文件名
+          IPA_OUTPUT_DIR="${{ github.workspace }}/build/ipa_unsigned" # IPA 存放目录
+          IPA_OUTPUT_PATH="${IPA_OUTPUT_DIR}/${IPA_FILENAME_ONLY}" # IPA 完整路径
+
+          echo "将要创建的 IPA 文件名: $IPA_FILENAME_ONLY"
+          echo "源 .app 路径 (绝对路径): ${APP_FULL_PATH_ENV}"
+
+          mkdir -p "${IPA_OUTPUT_DIR}/Payload" # 在 IPA_OUTPUT_DIR 内创建 Payload
+          
+          echo "Copying .app to Payload directory..."
+          cp -R "${APP_FULL_PATH_ENV}" "${IPA_OUTPUT_DIR}/Payload/"
+          
+          echo "Creating IPA file in ${IPA_OUTPUT_DIR}..."
+          cd "${IPA_OUTPUT_DIR}" # 进入 IPA_OUTPUT_DIR
+          zip -qr "${IPA_FILENAME_ONLY}" Payload/ # 在当前目录 (IPA_OUTPUT_DIR) 下创建 IPA 文件
+
+          echo "IPA_FINAL_PATH=${IPA_OUTPUT_PATH}" >> $GITHUB_ENV # 设置 IPA 的最终完整路径
+          echo "未签名的 IPA 包创建完成: ${IPA_OUTPUT_PATH}"
+          ls -la . # 显示 IPA_OUTPUT_DIR 的内容
+          echo "--- Listing content of build/ipa_unsigned again ---"
+          ls -la ${{ github.workspace }}/build/ipa_unsigned/
+
+      - name: 上传未签名的 IPA 构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: CyMusic-iOS-Unsigned-IPA
+          path: ${{ env.IPA_FINAL_PATH }} # 直接使用环境变量，指向IPA文件的完整路径
+          if-no-files-found: error
+          retention-days: 7
