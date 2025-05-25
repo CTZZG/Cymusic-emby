@@ -47,6 +47,21 @@ const App = () => {
 		loadEmbyConfig()
 	}, [])
 
+	// 初始化插件系统
+	useEffect(() => {
+		const initPlugins = async () => {
+			try {
+				console.log('开始初始化插件系统...')
+				await usePluginStore.getState().initializePlugins()
+				console.log('插件系统初始化完成')
+			} catch (error) {
+				console.error('插件系统初始化失败:', error)
+			}
+		}
+
+		initPlugins()
+	}, [])
+
 	useEffect(() => {
 		if (hasShareIntent) {
 			// we want to handle share intent event in a specific page
