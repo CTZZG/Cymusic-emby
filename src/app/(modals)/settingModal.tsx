@@ -499,6 +499,12 @@ const SettingModal = () => {
 					type: 'link',
 					value: '管理音源插件'
 				},
+				{
+					id: 'plugin_debug',
+					title: '插件调试',
+					type: 'link',
+					value: '测试插件功能'
+				},
 			],
 		},
 	]
@@ -722,6 +728,8 @@ const SettingModal = () => {
 						setIsQualitySelectorVisible(true)
 					} else if (item.id === 'plugin_manager') {
 						router.push('/(modals)/pluginManager')
+					} else if (item.id === 'plugin_debug') {
+						router.push('/(modals)/pluginDebug')
 					} else if (item.type === 'link') {
 						if (item.title === i18n.t('settings.items.clearPlaylist')) {
 							Alert.alert(
