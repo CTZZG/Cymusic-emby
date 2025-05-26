@@ -1,6 +1,6 @@
-import { getData } from 'ajv/lib/compile/validate'
-import { saveDataMultiple } from '@/helpers/storage'
+// import { getData } from 'ajv/lib/compile/validate' // 暂时注释掉，避免编译错误
 import { storageDataPrefix } from '@/constants/constant'
+import { saveDataMultiple } from '@/helpers/storage'
 
 const INFO_NAMES = {
   name: 24,

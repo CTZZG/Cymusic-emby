@@ -2,22 +2,21 @@
  * 按插件分组的搜索结果组件
  */
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import TracksListItem from '@/components/TracksListItem';
 import { colors, fontSize } from '@/constants/tokens';
 import { usePluginStore } from '@/store/pluginStore';
-import { SupportMediaType, IMusicItem, IAlbumItem, IArtistItem, IMusicSheetItem } from '@/types/MediaTypes';
-import { IPluginState } from '@/types/PluginTypes';
-import MusicItemCard from '@/components/MusicItemCard';
+import { SupportMediaType } from '@/types/MediaTypes';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 interface SearchResultsByPluginProps {
   query: string;
@@ -46,9 +45,9 @@ export default function SearchResultsByPlugin({
   const [expandedPlugins, setExpandedPlugins] = useState<Set<string>>(new Set());
 
   // 获取支持搜索的插件
-  const searchablePlugins = plugins.filter(plugin => 
-    plugin.enabled && 
-    plugin.instance.search && 
+  const searchablePlugins = plugins.filter(plugin =>
+    plugin.enabled &&
+    plugin.instance.search &&
     typeof plugin.instance.search === 'function' &&
     plugin.instance.supportedSearchType?.includes(mediaType)
   );
@@ -80,7 +79,7 @@ export default function SearchResultsByPlugin({
     const searchPromises = searchablePlugins.map(async (plugin, index) => {
       try {
         const result = await plugin.instance.search!(query, 1, mediaType);
-        
+
         setSearchResults(prev => {
           const newResults = [...prev];
           newResults[index] = {
@@ -93,7 +92,7 @@ export default function SearchResultsByPlugin({
         });
       } catch (error) {
         console.error(`Search failed for plugin ${plugin.id}:`, error);
-        
+
         setSearchResults(prev => {
           const newResults = [...prev];
           newResults[index] = {
@@ -125,7 +124,7 @@ export default function SearchResultsByPlugin({
 
     try {
       const result = await plugin.instance.search!(query, pluginResult.page + 1, mediaType);
-      
+
       setSearchResults(prev => {
         const newResults = [...prev];
         newResults[resultIndex] = {
@@ -139,7 +138,7 @@ export default function SearchResultsByPlugin({
       });
     } catch (error) {
       console.error(`Load more failed for plugin ${pluginResult.pluginId}:`, error);
-      
+
       setSearchResults(prev => {
         const newResults = [...prev];
         newResults[resultIndex] = {
@@ -174,13 +173,13 @@ export default function SearchResultsByPlugin({
     switch (mediaType) {
       case 'music':
         return (
-          <MusicItemCard
+          <TracksListItem
             key={`${item.platform}-${item.id}-${index}`}
-            musicItem={item as IMusicItem}
-            onPress={() => onItemPress?.(item)}
+            track={{...item, url: item.url || 'Unknown'} as any}
+            onTrackSelect={() => onItemPress?.(item)}
           />
         );
-      
+
       case 'album':
       case 'artist':
       case 'sheet':
@@ -208,7 +207,7 @@ export default function SearchResultsByPlugin({
             <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         );
-      
+
       default:
         return null;
     }
@@ -228,12 +227,12 @@ export default function SearchResultsByPlugin({
           <View style={styles.pluginInfo}>
             <Text style={styles.pluginName}>{pluginResult.pluginName}</Text>
             <Text style={styles.resultCount}>
-              {pluginResult.loading ? '搜索中...' : 
+              {pluginResult.loading ? '搜索中...' :
                pluginResult.error ? '搜索失败' :
                `${pluginResult.results.length} 个结果`}
             </Text>
           </View>
-          
+
           <View style={styles.pluginActions}>
             {pluginResult.loading && (
               <ActivityIndicator size="small" color={colors.primary} />
@@ -267,7 +266,7 @@ export default function SearchResultsByPlugin({
             ) : (
               <>
                 {displayResults.map(renderMediaItem)}
-                
+
                 {/* 加载更多按钮 */}
                 {pluginResult.hasMore && (
                   <TouchableOpacity

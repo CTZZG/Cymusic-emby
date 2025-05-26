@@ -3,24 +3,21 @@
  * 负责插件的加载、卸载、更新和生命周期管理
  */
 
+import PersistStatus from '../store/PersistStatus';
 import {
   IPlugin,
-  IPluginState,
   IPluginConfig,
   IPluginLoadOptions,
   IPluginManager,
+  IPluginState,
   PluginError
 } from '../types/PluginTypes';
-import { PluginRuntime } from './PluginRuntime';
-import PersistStatus from '../store/PersistStatus';
 
 export class PluginManager implements IPluginManager {
   private plugins: Map<string, IPluginState> = new Map();
-  private runtime: PluginRuntime;
-  private configKey = 'plugin.configs';
+  private configKey = 'plugin.configs' as const;
 
   constructor() {
-    this.runtime = new PluginRuntime();
     this.loadPluginConfig();
   }
 
@@ -50,12 +47,12 @@ export class PluginManager implements IPluginManager {
         pluginCode = await this.readFileAsText(source);
       }
 
-      // 在运行时环境中执行插件代码
-      const pluginInstance = await this.runtime.executePlugin(pluginCode);
-      
+      // 执行插件代码
+      const pluginInstance = this.executePluginCode(pluginCode);
+
       // 验证插件
       this.validatePlugin(pluginInstance);
-      
+
       pluginId = this.generatePluginId(pluginInstance.platform);
 
       // 检查是否已存在
@@ -81,8 +78,7 @@ export class PluginManager implements IPluginManager {
         }
       }
 
-      // 设置插件环境
-      this.runtime.setPluginEnvironment(pluginId, pluginState.userVariables);
+      // 插件已加载，无需设置运行时环境
 
       // 存储插件
       this.plugins.set(pluginId, pluginState);
@@ -114,9 +110,6 @@ export class PluginManager implements IPluginManager {
     }
 
     try {
-      // 清理运行时环境
-      this.runtime.cleanupPlugin(pluginId);
-
       // 移除插件
       this.plugins.delete(pluginId);
 
@@ -237,7 +230,6 @@ export class PluginManager implements IPluginManager {
     }
 
     plugin.userVariables[key] = value;
-    this.runtime.setPluginEnvironment(pluginId, plugin.userVariables);
     await this.savePluginConfig();
   }
 
@@ -272,7 +264,7 @@ export class PluginManager implements IPluginManager {
   async loadPluginConfig(): Promise<void> {
     try {
       const configs: IPluginConfig[] = PersistStatus.get(this.configKey) ?? [];
-      
+
       for (const config of configs) {
         if (config.source) {
           try {
@@ -288,6 +280,32 @@ export class PluginManager implements IPluginManager {
       }
     } catch (error) {
       console.error('Failed to load plugin config:', error);
+    }
+  }
+
+  /**
+   * 执行插件代码
+   */
+  private executePluginCode(code: string): IPlugin {
+    try {
+      // 创建一个简单的模块环境
+      const module = { exports: {} };
+      const exports = module.exports;
+
+      // 创建一个函数来执行插件代码
+      const pluginFunction = new Function('module', 'exports', 'require', code);
+
+      // 提供一个简单的require函数
+      const require = (name: string) => {
+        throw new Error(`Module ${name} is not available in plugin environment`);
+      };
+
+      // 执行插件代码
+      pluginFunction(module, exports, require);
+
+      return module.exports as IPlugin;
+    } catch (error) {
+      throw new Error(`Failed to execute plugin code: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

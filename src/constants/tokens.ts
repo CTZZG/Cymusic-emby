@@ -7,6 +7,9 @@ export const colors = {
 	maximumTrackTintColor: 'rgba(255,255,255,0.4)',
 	minimumTrackTintColor: 'rgba(255,255,255,0.6)',
 	loading: 'rgba(255,255,255,0.6)',
+	surface: '#1a1a1a',
+	border: '#333333',
+	error: '#ff4444',
 }
 
 export const fontSize = {

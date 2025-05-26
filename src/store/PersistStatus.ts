@@ -39,6 +39,8 @@ interface IPersistConfig {
 	'emby.password': string
 	'emby.deviceId': string
 	'emby.uploadPlaylistToEmby': boolean
+	// 插件配置
+	'plugin.configs': any[]
 }
 
 function set<K extends keyof IPersistConfig>(key: K, value: IPersistConfig[K] | undefined) {

@@ -3,15 +3,15 @@
  */
 
 import { create } from 'zustand';
-import { IPluginState, IPluginConfig } from '../types/PluginTypes';
 import { pluginManager } from '../core/PluginManager';
+import { IPluginState } from '../types/PluginTypes';
 
 interface PluginStoreState {
   // 状态
   plugins: IPluginState[];
   loading: boolean;
   error: string | null;
-  
+
   // 操作
   loadPlugins: () => Promise<void>;
   addPlugin: (source: string | File, autoEnable?: boolean) => Promise<void>;
@@ -22,6 +22,7 @@ interface PluginStoreState {
   setPluginVariable: (pluginId: string, key: string, value: string) => Promise<void>;
   refreshPlugins: () => void;
   clearError: () => void;
+  getPlugin: (pluginId: string) => IPluginState | undefined;
 }
 
 export const usePluginStore = create<PluginStoreState>((set, get) => ({
@@ -33,16 +34,16 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 加载所有插件
   loadPlugins: async () => {
     set({ loading: true, error: null });
-    
+
     try {
       await pluginManager.loadPluginConfig();
       const plugins = pluginManager.getAllPlugins();
       set({ plugins, loading: false });
     } catch (error) {
       console.error('Failed to load plugins:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load plugins',
-        loading: false 
+        loading: false
       });
     }
   },
@@ -50,16 +51,16 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 添加插件
   addPlugin: async (source: string | File, autoEnable = true) => {
     set({ loading: true, error: null });
-    
+
     try {
       await pluginManager.loadPlugin(source, { autoEnable });
       const plugins = pluginManager.getAllPlugins();
       set({ plugins, loading: false });
     } catch (error) {
       console.error('Failed to add plugin:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to add plugin',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -68,16 +69,16 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 移除插件
   removePlugin: async (pluginId: string) => {
     set({ loading: true, error: null });
-    
+
     try {
       await pluginManager.unloadPlugin(pluginId);
       const plugins = pluginManager.getAllPlugins();
       set({ plugins, loading: false });
     } catch (error) {
       console.error('Failed to remove plugin:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to remove plugin',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -86,16 +87,16 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 更新插件
   updatePlugin: async (pluginId: string) => {
     set({ loading: true, error: null });
-    
+
     try {
       await pluginManager.updatePlugin(pluginId);
       const plugins = pluginManager.getAllPlugins();
       set({ plugins, loading: false });
     } catch (error) {
       console.error('Failed to update plugin:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to update plugin',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -104,14 +105,14 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 启用插件
   enablePlugin: async (pluginId: string) => {
     set({ error: null });
-    
+
     try {
       await pluginManager.enablePlugin(pluginId);
       const plugins = pluginManager.getAllPlugins();
       set({ plugins });
     } catch (error) {
       console.error('Failed to enable plugin:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to enable plugin'
       });
       throw error;
@@ -121,14 +122,14 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 禁用插件
   disablePlugin: async (pluginId: string) => {
     set({ error: null });
-    
+
     try {
       await pluginManager.disablePlugin(pluginId);
       const plugins = pluginManager.getAllPlugins();
       set({ plugins });
     } catch (error) {
       console.error('Failed to disable plugin:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to disable plugin'
       });
       throw error;
@@ -138,14 +139,14 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 设置插件变量
   setPluginVariable: async (pluginId: string, key: string, value: string) => {
     set({ error: null });
-    
+
     try {
       await pluginManager.setPluginVariable(pluginId, key, value);
       const plugins = pluginManager.getAllPlugins();
       set({ plugins });
     } catch (error) {
       console.error('Failed to set plugin variable:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to set plugin variable'
       });
       throw error;
@@ -161,11 +162,17 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
   // 清除错误
   clearError: () => {
     set({ error: null });
+  },
+
+  // 获取插件
+  getPlugin: (pluginId: string) => {
+    const { plugins } = get();
+    return plugins.find(plugin => plugin.id === pluginId);
   }
 }));
 
 // 选择器函数
-export const selectEnabledPlugins = (state: PluginStoreState) => 
+export const selectEnabledPlugins = (state: PluginStoreState) =>
   state.plugins.filter(plugin => plugin.enabled);
 
 export const selectPluginById = (pluginId: string) => (state: PluginStoreState) =>
@@ -175,44 +182,44 @@ export const selectPluginsByPlatform = (platform: string) => (state: PluginStore
   state.plugins.filter(plugin => plugin.instance.platform === platform);
 
 export const selectPluginsWithSearch = (state: PluginStoreState) =>
-  state.plugins.filter(plugin => 
-    plugin.enabled && 
-    plugin.instance.search && 
+  state.plugins.filter(plugin =>
+    plugin.enabled &&
+    plugin.instance.search &&
     typeof plugin.instance.search === 'function'
   );
 
 export const selectPluginsWithMediaSource = (state: PluginStoreState) =>
-  state.plugins.filter(plugin => 
-    plugin.enabled && 
-    plugin.instance.getMediaSource && 
+  state.plugins.filter(plugin =>
+    plugin.enabled &&
+    plugin.instance.getMediaSource &&
     typeof plugin.instance.getMediaSource === 'function'
   );
 
 export const selectPluginsWithLyrics = (state: PluginStoreState) =>
-  state.plugins.filter(plugin => 
-    plugin.enabled && 
-    plugin.instance.getLyric && 
+  state.plugins.filter(plugin =>
+    plugin.enabled &&
+    plugin.instance.getLyric &&
     typeof plugin.instance.getLyric === 'function'
   );
 
 export const selectPluginsWithTopLists = (state: PluginStoreState) =>
-  state.plugins.filter(plugin => 
-    plugin.enabled && 
-    plugin.instance.getTopLists && 
+  state.plugins.filter(plugin =>
+    plugin.enabled &&
+    plugin.instance.getTopLists &&
     typeof plugin.instance.getTopLists === 'function'
   );
 
 export const selectPluginsWithRecommendSheets = (state: PluginStoreState) =>
-  state.plugins.filter(plugin => 
-    plugin.enabled && 
-    plugin.instance.getRecommendSheetsByTag && 
+  state.plugins.filter(plugin =>
+    plugin.enabled &&
+    plugin.instance.getRecommendSheetsByTag &&
     typeof plugin.instance.getRecommendSheetsByTag === 'function'
   );
 
 // 插件统计信息
 export const usePluginStats = () => {
   const plugins = usePluginStore(state => state.plugins);
-  
+
   return {
     total: plugins.length,
     enabled: plugins.filter(p => p.enabled).length,

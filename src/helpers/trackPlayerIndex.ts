@@ -377,6 +377,22 @@ const addAsNextTrack = (musicItem: IMusic.IMusicItem | IMusic.IMusicItem[]) => {
 		play(Array.isArray(musicItem) ? musicItem[0] : musicItem)
 	}
 }
+
+/**
+ * 添加并播放
+ * @param musicItem 音乐项目
+ */
+const addAndPlay = async (musicItem: IMusic.IMusicItem) => {
+	try {
+		// 添加到播放列表
+		add(musicItem)
+		// 播放这首歌
+		await play(musicItem, true)
+	} catch (error) {
+		logError('Failed to add and play music:', error)
+		throw error
+	}
+}
 /**
  * 是当前正在播放的音频
  *
@@ -1699,6 +1715,7 @@ const myTrackPlayer = {
 	getPlayList,
 	addAll,
 	add,
+	addAndPlay,
 	addAsNextTrack,
 	skipToNext,
 	skipToPrevious,
