@@ -4,6 +4,7 @@ import LyricManager from '@/helpers/lyricManager'
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState'
 import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer'
 import useEmbyConfigStore from '@/store/embyConfigStore'
+import { initializePluginStore } from '@/store/pluginStore'
 import i18n, { setI18nConfig } from '@/utils/i18n'
 import { router, SplashScreen, Stack } from 'expo-router'
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
@@ -33,18 +34,23 @@ const App = () => {
 	const [isI18nReady, setIsI18nReady] = useState(false)
 	const { hasShareIntent } = useShareIntentContext()
 
-	// 确保Emby配置在应用启动时被正确加载
+	// 确保Emby配置和插件系统在应用启动时被正确加载
 	useEffect(() => {
-		const loadEmbyConfig = () => {
+		const initializeApp = async () => {
 			try {
+				// 加载Emby配置
 				useEmbyConfigStore.getState().loadConfig()
 				console.log('Emby配置已加载')
+
+				// 初始化插件系统
+				await initializePluginStore()
+				console.log('插件系统已初始化')
 			} catch (error) {
-				console.error('加载Emby配置失败:', error)
+				console.error('应用初始化失败:', error)
 			}
 		}
 
-		loadEmbyConfig()
+		initializeApp()
 	}, [])
 
 	useEffect(() => {

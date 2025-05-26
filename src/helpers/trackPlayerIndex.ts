@@ -34,12 +34,15 @@ import { Alert, AppState, Image } from 'react-native'
 import { myGetLyric } from '@/helpers/userApi/getMusicSource'
 
 import { fakeAudioMp3Uri } from '@/constants/images'
+import { playbackStatusReporter } from '@/core/PlaybackStatusReporter'
+import { pluginManager } from '@/core/PluginManager'
 import {
     getEmbyConfig,
     getEmbyToken,
     getLyricApi,
     httpEmby
 } from '@/helpers/embyApi'
+import { IMusicItem } from '@/types/MediaTypes'
 import { nowLanguage } from '@/utils/i18n'
 import { showToast } from '@/utils/utils'
 import { logError, logInfo } from './logger'
@@ -190,23 +193,57 @@ async function setupTrackPlayer() {
 			}
 		})
 
-		// 在现有的事件监听器之后添加（大约在第187行之后）
+		// 播放进度更新事件 - 集成插件回调
 		ReactNativeTrackPlayer.addEventListener(Event.PlaybackProgressUpdated, async (progress) => {
     		const currentMusic = currentMusicStore.getValue()
-    		if (currentMusic && (currentMusic.platform === 'emby' || currentMusic._source === 'emby')) {
-        	// 将秒转换为ticks（1秒 = 10,000,000 ticks）
-        		const positionTicks = Math.floor(progress.position * 10000000)
-        		await reportEmbyPlaybackProgress(currentMusic, positionTicks, false)
+    		if (currentMusic) {
+    			// 上报给插件系统
+    			try {
+    				await playbackStatusReporter.reportPlaybackProgress(
+    					currentMusic as IMusicItem,
+    					progress.position,
+    					progress.duration
+    				)
+    			} catch (error) {
+    				logError('Failed to report progress to plugins:', error)
+    			}
+
+    			// 保持Emby的特殊处理（向后兼容）
+    			if (currentMusic.platform === 'emby' || currentMusic._source === 'emby') {
+        			const positionTicks = Math.floor(progress.position * 10000000)
+        			await reportEmbyPlaybackProgress(currentMusic, positionTicks, false)
+    			}
     		}
 		})
 
+		// 播放状态变化事件 - 集成插件回调
 		ReactNativeTrackPlayer.addEventListener(Event.PlaybackState, async (state) => {
     		const currentMusic = currentMusicStore.getValue()
-    		if (currentMusic && (currentMusic.platform === 'emby' || currentMusic._source === 'emby')) {
-        		const progress = await ReactNativeTrackPlayer.getProgress()
-        		const positionTicks = Math.floor(progress.position * 10000000)
-        		const isPaused = state.state === State.Paused || state.state === State.Stopped
-        		await reportEmbyPlaybackProgress(currentMusic, positionTicks, isPaused)
+    		if (currentMusic) {
+    			try {
+    				// 根据状态上报给插件系统
+    				switch (state.state) {
+    					case State.Playing:
+    						await playbackStatusReporter.reportPlaybackStart(currentMusic as IMusicItem)
+    						break
+    					case State.Paused:
+    						await playbackStatusReporter.reportPlaybackPause(currentMusic as IMusicItem)
+    						break
+    					case State.Stopped:
+    						await playbackStatusReporter.reportPlaybackStop(currentMusic as IMusicItem)
+    						break
+    				}
+    			} catch (error) {
+    				logError('Failed to report state to plugins:', error)
+    			}
+
+    			// 保持Emby的特殊处理（向后兼容）
+    			if (currentMusic.platform === 'emby' || currentMusic._source === 'emby') {
+        			const progress = await ReactNativeTrackPlayer.getProgress()
+        			const positionTicks = Math.floor(progress.position * 10000000)
+        			const isPaused = state.state === State.Paused || state.state === State.Stopped
+        			await reportEmbyPlaybackProgress(currentMusic, positionTicks, isPaused)
+    			}
     		}
 		})
 
@@ -946,6 +983,72 @@ const reportEmbyPlaybackProgress = async (
 }
 
 /**
+ * 通过插件获取音源
+ * @param musicItem 音乐项目
+ * @returns 音源结果或null
+ */
+const getPluginMediaSource = async (musicItem: IMusic.IMusicItem): Promise<any | null> => {
+    try {
+        // 查找对应的插件
+        const plugin = pluginManager.getEnabledPlugins().find(p => p.instance.platform === musicItem.platform)
+
+        if (!plugin || !plugin.instance.getMediaSource) {
+            logInfo(`No plugin found for platform: ${musicItem.platform}`)
+            return null
+        }
+
+        logInfo(`Getting media source from plugin: ${plugin.instance.platform}`)
+
+        // 调用插件的getMediaSource方法
+        const result = await plugin.instance.getMediaSource(musicItem as IMusicItem, qualityStore.getValue() as any)
+
+        if (result && result.url) {
+            logInfo(`Plugin media source obtained: ${result.url}`)
+            return result
+        } else {
+            logError(`Plugin returned empty media source for: ${musicItem.title}`)
+            return null
+        }
+    } catch (error) {
+        logError(`Failed to get media source from plugin for ${musicItem.platform}:`, error)
+        return null
+    }
+}
+
+/**
+ * 通过插件获取歌词
+ * @param musicItem 音乐项目
+ * @returns 歌词结果或null
+ */
+const getPluginLyric = async (musicItem: IMusic.IMusicItem): Promise<string | null> => {
+    try {
+        // 查找对应的插件
+        const plugin = pluginManager.getEnabledPlugins().find(p => p.instance.platform === musicItem.platform)
+
+        if (!plugin || !plugin.instance.getLyric) {
+            logInfo(`No lyric plugin found for platform: ${musicItem.platform}`)
+            return null
+        }
+
+        logInfo(`Getting lyric from plugin: ${plugin.instance.platform}`)
+
+        // 调用插件的getLyric方法
+        const result = await plugin.instance.getLyric(musicItem as IMusicItem)
+
+        if (result && result.rawLrc) {
+            logInfo(`Plugin lyric obtained for: ${musicItem.title}`)
+            return result.rawLrc
+        } else {
+            logInfo(`Plugin returned empty lyric for: ${musicItem.title}`)
+            return null
+        }
+    } catch (error) {
+        logError(`Failed to get lyric from plugin for ${musicItem.platform}:`, error)
+        return null
+    }
+}
+
+/**
  * 播放
  *
  * 当musicItem 为空时，代表暂停/播放
@@ -1033,10 +1136,22 @@ const play = async (musicItem?: IMusic.IMusicItem | null, forcePlay?: boolean) =
 		if (!isCurrentMusic(musicItem)) {
 			return
 		}
-		// 在第849行附近，找到 if (!source) { 这一段，替换为：
+		// 获取音源 - 优先使用插件系统
 if (!source) {
-    // 首先尝试获取Emby播放URL
-    if (musicItem.platform === 'emby' || musicItem._source === 'emby') {
+    // 1. 首先尝试通过插件获取音源
+    if (musicItem.platform && musicItem.platform !== '本地') {
+        logInfo(`尝试通过插件获取音源: ${musicItem.platform}`)
+        const pluginSource = await getPluginMediaSource(musicItem)
+        if (pluginSource) {
+            source = pluginSource
+            logInfo('成功通过插件获取音源:', pluginSource.url)
+        } else {
+            logInfo('插件获取音源失败，尝试其他方式')
+        }
+    }
+
+    // 2. 如果插件获取失败，尝试Emby直接获取（向后兼容）
+    if (!source && (musicItem.platform === 'emby' || musicItem._source === 'emby')) {
         logInfo('尝试获取Emby播放URL')
         const embyUrl = await getEmbyPlayUrl(musicItem)
         if (embyUrl) {
@@ -1049,7 +1164,10 @@ if (!source) {
             showToast('错误', '获取Emby播放链接失败', 'error')
             return
         }
-    } else if ((!source && musicItem.url == 'Unknown') || musicItem.url.includes('fake')) {
+    }
+
+    // 3. 如果还没有音源，尝试原有的音源获取逻辑
+    if (!source && ((!source && musicItem.url == 'Unknown') || musicItem.url.includes('fake'))) {
         // 原有的音源获取逻辑（QQ音乐等）
         logInfo('没有url')
         let resp_url = null
@@ -1160,22 +1278,36 @@ if (!source) {
 		logInfo('获取音源成功：', track)
 		// 9. 设置音源
 		await setTrackSource(track as Track)
-		// 4.1 刷新歌词信息
+		// 4.1 刷新歌词信息 - 优先使用插件系统
 		let lyc;
-		if (musicItem.platform === 'emby' || musicItem._source === 'emby') {
-    		// 使用Emby歌词获取
-    		const embyLyric = await getLyricApi(musicItem)
-    		if (embyLyric && embyLyric.rawLrc) {
-        		lyc = { lyric: embyLyric.rawLrc }
-    		} else {
-        		lyc = { lyric: '[00:00.00]暂无歌词' }
-    		}
-		} else {
-    		// 使用原有的歌词获取方式
-    		lyc = await myGetLyric(musicItem)
+		let lyricText = null;
+
+		// 1. 首先尝试通过插件获取歌词
+		if (musicItem.platform && musicItem.platform !== '本地') {
+			logInfo(`尝试通过插件获取歌词: ${musicItem.platform}`)
+			lyricText = await getPluginLyric(musicItem)
 		}
-		// console.debug(lyc.lyric);
-		nowLyricState.setValue(lyc.lyric)
+
+		// 2. 如果插件获取失败，尝试Emby直接获取（向后兼容）
+		if (!lyricText && (musicItem.platform === 'emby' || musicItem._source === 'emby')) {
+			logInfo('尝试通过Emby API获取歌词')
+			const embyLyric = await getLyricApi(musicItem)
+			if (embyLyric && embyLyric.rawLrc) {
+				lyricText = embyLyric.rawLrc
+			}
+		}
+
+		// 3. 如果还没有歌词，使用原有的歌词获取方式
+		if (!lyricText) {
+			logInfo('使用原有的歌词获取方式')
+			lyc = await myGetLyric(musicItem)
+			lyricText = lyc?.lyric
+		}
+
+		// 4. 设置歌词，如果没有则显示默认文本
+		const finalLyric = lyricText || '[00:00.00]暂无歌词'
+		nowLyricState.setValue(finalLyric)
+		logInfo('歌词设置完成:', finalLyric.substring(0, 50) + '...')
 		// 9.1 如果需要缓存,且不是假音频,且不是本地文件
 		if (
 			track.url !== fakeAudioMp3Uri &&
