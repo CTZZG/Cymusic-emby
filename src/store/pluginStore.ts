@@ -1,348 +1,237 @@
-import { create } from 'zustand';
-import { PluginManager } from '../core/PluginManager';
-import { 
-  MusicPlugin, 
-  PluginMetadata, 
-  PluginConfig, 
-  PluginImportResult,
-  SearchResult,
-  SearchType,
-  MusicItem,
-  LyricResult
-} from '../core/types';
-import { NanguaPluginAdapter, createNanguaPluginAdapter } from '../core/NanguaPluginAdapter';
-import { embyPlugin } from '../plugins/emby/EmbyPlugin';
-import PersistStatus from './PersistStatus';
+/**
+ * 插件状态管理
+ */
 
-interface PluginState {
-  // 插件管理器
-  pluginManager: PluginManager;
-  
-  // 插件列表
-  plugins: Array<{ plugin: MusicPlugin; metadata: PluginMetadata }>;
-  enabledPlugins: Array<{ plugin: MusicPlugin; metadata: PluginMetadata }>;
-  
+import { create } from 'zustand';
+import { IPluginState, IPluginConfig } from '../types/PluginTypes';
+import { pluginManager } from '../core/PluginManager';
+
+interface PluginStoreState {
   // 状态
-  isLoading: boolean;
+  plugins: IPluginState[];
+  loading: boolean;
   error: string | null;
   
-  // 操作方法
-  initializePlugins: () => Promise<void>;
-  registerPlugin: (plugin: MusicPlugin, metadata?: Partial<PluginMetadata>) => Promise<boolean>;
-  unregisterPlugin: (pluginName: string) => Promise<boolean>;
-  enablePlugin: (pluginName: string) => boolean;
-  disablePlugin: (pluginName: string) => boolean;
-  setPluginConfig: (pluginName: string, config: PluginConfig) => Promise<boolean>;
-  testPluginConnection: (pluginName: string) => Promise<boolean>;
-  
-  // 插件导入
-  importPluginFromCode: (code: string, metadata?: Partial<PluginMetadata>) => Promise<PluginImportResult>;
-  importNanguaPlugin: (code: string) => Promise<PluginImportResult>;
-  
-  // 音乐功能
-  searchAll: (keyword: string, type?: SearchType, page?: number) => Promise<SearchResult[]>;
-  getPlayUrl: (musicItem: MusicItem) => Promise<string>;
-  getLyric: (musicItem: MusicItem) => Promise<LyricResult | null>;
-  
-  // 内部方法
-  refreshPluginList: () => void;
-  loadPersistedConfigs: () => void;
-  savePluginConfig: (pluginName: string, config: PluginConfig) => void;
+  // 操作
+  loadPlugins: () => Promise<void>;
+  addPlugin: (source: string | File, autoEnable?: boolean) => Promise<void>;
+  removePlugin: (pluginId: string) => Promise<void>;
+  updatePlugin: (pluginId: string) => Promise<void>;
+  enablePlugin: (pluginId: string) => Promise<void>;
+  disablePlugin: (pluginId: string) => Promise<void>;
+  setPluginVariable: (pluginId: string, key: string, value: string) => Promise<void>;
+  refreshPlugins: () => void;
+  clearError: () => void;
 }
 
-export const usePluginStore = create<PluginState>((set, get) => {
-  const pluginManager = new PluginManager({
-    maxConcurrentSearches: 5,
-    searchTimeout: 10000,
-    enablePluginValidation: true,
-    allowUnsafePlugins: false
-  });
+export const usePluginStore = create<PluginStoreState>((set, get) => ({
+  // 初始状态
+  plugins: [],
+  loading: false,
+  error: null,
 
-  // 监听插件事件
-  pluginManager.addEventListener((event) => {
-    console.log('Plugin event:', event);
+  // 加载所有插件
+  loadPlugins: async () => {
+    set({ loading: true, error: null });
     
-    // 刷新插件列表
-    get().refreshPluginList();
+    try {
+      await pluginManager.loadPluginConfig();
+      const plugins = pluginManager.getAllPlugins();
+      set({ plugins, loading: false });
+    } catch (error) {
+      console.error('Failed to load plugins:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to load plugins',
+        loading: false 
+      });
+    }
+  },
+
+  // 添加插件
+  addPlugin: async (source: string | File, autoEnable = true) => {
+    set({ loading: true, error: null });
     
-    // 保存配置
-    if (event.type === 'plugin_config_changed') {
-      get().savePluginConfig(event.pluginName, event.config);
-    }
-  });
-
-  return {
-    pluginManager,
-    plugins: [],
-    enabledPlugins: [],
-    isLoading: false,
-    error: null,
-
-    // 初始化插件系统
-    initializePlugins: async () => {
-      set({ isLoading: true, error: null });
-      
-      try {
-        // 加载持久化的配置
-        get().loadPersistedConfigs();
-        
-        // 注册内置插件
-        await get().registerPlugin(embyPlugin, {
-          source: 'builtin',
-          enabled: true
-        });
-        
-        // 加载用户导入的插件
-        const importedPlugins = PersistStatus.get('plugins.imported') || [];
-        for (const pluginData of importedPlugins) {
-          try {
-            if (pluginData.type === 'nangua') {
-              await get().importNanguaPlugin(pluginData.code);
-            } else {
-              await get().importPluginFromCode(pluginData.code, pluginData.metadata);
-            }
-          } catch (error) {
-            console.error(`Failed to load imported plugin:`, error);
-          }
-        }
-        
-        get().refreshPluginList();
-        set({ isLoading: false });
-      } catch (error) {
-        console.error('Failed to initialize plugins:', error);
-        set({ 
-          isLoading: false, 
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-    },
-
-    // 注册插件
-    registerPlugin: async (plugin: MusicPlugin, metadata?: Partial<PluginMetadata>) => {
-      try {
-        const success = await pluginManager.registerPlugin(plugin, metadata);
-        if (success) {
-          get().refreshPluginList();
-        }
-        return success;
-      } catch (error) {
-        console.error('Failed to register plugin:', error);
-        set({ error: error instanceof Error ? error.message : String(error) });
-        return false;
-      }
-    },
-
-    // 卸载插件
-    unregisterPlugin: async (pluginName: string) => {
-      try {
-        const success = await pluginManager.unregisterPlugin(pluginName);
-        if (success) {
-          get().refreshPluginList();
-          
-          // 从持久化存储中移除
-          const importedPlugins = PersistStatus.get('plugins.imported') || [];
-          const updatedPlugins = importedPlugins.filter((p: any) => p.name !== pluginName);
-          PersistStatus.set('plugins.imported', updatedPlugins);
-        }
-        return success;
-      } catch (error) {
-        console.error('Failed to unregister plugin:', error);
-        set({ error: error instanceof Error ? error.message : String(error) });
-        return false;
-      }
-    },
-
-    // 启用插件
-    enablePlugin: (pluginName: string) => {
-      const success = pluginManager.enablePlugin(pluginName);
-      if (success) {
-        get().refreshPluginList();
-      }
-      return success;
-    },
-
-    // 禁用插件
-    disablePlugin: (pluginName: string) => {
-      const success = pluginManager.disablePlugin(pluginName);
-      if (success) {
-        get().refreshPluginList();
-      }
-      return success;
-    },
-
-    // 设置插件配置
-    setPluginConfig: async (pluginName: string, config: PluginConfig) => {
-      try {
-        const success = await pluginManager.setPluginConfig(pluginName, config);
-        if (success) {
-          get().savePluginConfig(pluginName, config);
-        }
-        return success;
-      } catch (error) {
-        console.error('Failed to set plugin config:', error);
-        set({ error: error instanceof Error ? error.message : String(error) });
-        return false;
-      }
-    },
-
-    // 测试插件连接
-    testPluginConnection: async (pluginName: string) => {
-      try {
-        return await pluginManager.testPluginConnection(pluginName);
-      } catch (error) {
-        console.error('Plugin connection test failed:', error);
-        return false;
-      }
-    },
-
-    // 从代码导入插件
-    importPluginFromCode: async (code: string, metadata?: Partial<PluginMetadata>) => {
-      try {
-        // 这里需要实现安全的代码执行
-        // 暂时返回错误，需要进一步实现
-        throw new Error('Direct code import not implemented yet');
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error)
-        };
-      }
-    },
-
-    // 导入南瓜插件
-    importNanguaPlugin: async (code: string) => {
-      try {
-        const adapter = createNanguaPluginAdapter(code);
-        const success = await get().registerPlugin(adapter, {
-          source: 'imported',
-          enabled: true
-        });
-        
-        if (success) {
-          // 保存到持久化存储
-          const importedPlugins = PersistStatus.get('plugins.imported') || [];
-          importedPlugins.push({
-            name: adapter.name,
-            type: 'nangua',
-            code: code,
-            metadata: {
-              name: adapter.name,
-              version: adapter.version,
-              author: adapter.author,
-              description: adapter.description
-            }
-          });
-          PersistStatus.set('plugins.imported', importedPlugins);
-        }
-        
-        return {
-          success,
-          plugin: success ? adapter : undefined,
-          metadata: success ? pluginManager.getPluginMetadata(adapter.name) : undefined
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error)
-        };
-      }
-    },
-
-    // 聚合搜索
-    searchAll: async (keyword: string, type: SearchType = 'music', page: number = 1) => {
-      try {
-        const result = await pluginManager.searchAll(keyword, type, page);
-        return result.results.map(r => ({
-          data: r.data,
-          hasMore: r.hasMore,
-          page,
-          pluginName: r.pluginName
-        }));
-      } catch (error) {
-        console.error('Search failed:', error);
-        throw error;
-      }
-    },
-
-    // 获取播放URL
-    getPlayUrl: async (musicItem: MusicItem) => {
-      try {
-        return await pluginManager.getPlayUrl(musicItem);
-      } catch (error) {
-        console.error('Failed to get play URL:', error);
-        throw error;
-      }
-    },
-
-    // 获取歌词
-    getLyric: async (musicItem: MusicItem) => {
-      try {
-        return await pluginManager.getLyric(musicItem);
-      } catch (error) {
-        console.error('Failed to get lyric:', error);
-        return null;
-      }
-    },
-
-    // 刷新插件列表
-    refreshPluginList: () => {
-      const allPlugins = pluginManager.getAllPlugins();
-      const enabledPlugins = pluginManager.getEnabledPlugins();
-      
-      set({
-        plugins: allPlugins,
-        enabledPlugins: enabledPlugins
+    try {
+      await pluginManager.loadPlugin(source, { autoEnable });
+      const plugins = pluginManager.getAllPlugins();
+      set({ plugins, loading: false });
+    } catch (error) {
+      console.error('Failed to add plugin:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to add plugin',
+        loading: false 
       });
-    },
-
-    // 加载持久化的配置
-    loadPersistedConfigs: () => {
-      const configs = PersistStatus.get('plugins.configs') || {};
-      
-      Object.entries(configs).forEach(([pluginName, config]) => {
-        pluginManager.setPluginConfig(pluginName, config as PluginConfig);
-      });
-    },
-
-    // 保存插件配置
-    savePluginConfig: (pluginName: string, config: PluginConfig) => {
-      const configs = PersistStatus.get('plugins.configs') || {};
-      configs[pluginName] = config;
-      PersistStatus.set('plugins.configs', configs);
+      throw error;
     }
-  };
-});
+  },
 
-// 导出便捷的hooks
-export const usePlugins = () => {
-  const store = usePluginStore();
+  // 移除插件
+  removePlugin: async (pluginId: string) => {
+    set({ loading: true, error: null });
+    
+    try {
+      await pluginManager.unloadPlugin(pluginId);
+      const plugins = pluginManager.getAllPlugins();
+      set({ plugins, loading: false });
+    } catch (error) {
+      console.error('Failed to remove plugin:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to remove plugin',
+        loading: false 
+      });
+      throw error;
+    }
+  },
+
+  // 更新插件
+  updatePlugin: async (pluginId: string) => {
+    set({ loading: true, error: null });
+    
+    try {
+      await pluginManager.updatePlugin(pluginId);
+      const plugins = pluginManager.getAllPlugins();
+      set({ plugins, loading: false });
+    } catch (error) {
+      console.error('Failed to update plugin:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to update plugin',
+        loading: false 
+      });
+      throw error;
+    }
+  },
+
+  // 启用插件
+  enablePlugin: async (pluginId: string) => {
+    set({ error: null });
+    
+    try {
+      await pluginManager.enablePlugin(pluginId);
+      const plugins = pluginManager.getAllPlugins();
+      set({ plugins });
+    } catch (error) {
+      console.error('Failed to enable plugin:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to enable plugin'
+      });
+      throw error;
+    }
+  },
+
+  // 禁用插件
+  disablePlugin: async (pluginId: string) => {
+    set({ error: null });
+    
+    try {
+      await pluginManager.disablePlugin(pluginId);
+      const plugins = pluginManager.getAllPlugins();
+      set({ plugins });
+    } catch (error) {
+      console.error('Failed to disable plugin:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to disable plugin'
+      });
+      throw error;
+    }
+  },
+
+  // 设置插件变量
+  setPluginVariable: async (pluginId: string, key: string, value: string) => {
+    set({ error: null });
+    
+    try {
+      await pluginManager.setPluginVariable(pluginId, key, value);
+      const plugins = pluginManager.getAllPlugins();
+      set({ plugins });
+    } catch (error) {
+      console.error('Failed to set plugin variable:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to set plugin variable'
+      });
+      throw error;
+    }
+  },
+
+  // 刷新插件列表
+  refreshPlugins: () => {
+    const plugins = pluginManager.getAllPlugins();
+    set({ plugins });
+  },
+
+  // 清除错误
+  clearError: () => {
+    set({ error: null });
+  }
+}));
+
+// 选择器函数
+export const selectEnabledPlugins = (state: PluginStoreState) => 
+  state.plugins.filter(plugin => plugin.enabled);
+
+export const selectPluginById = (pluginId: string) => (state: PluginStoreState) =>
+  state.plugins.find(plugin => plugin.id === pluginId);
+
+export const selectPluginsByPlatform = (platform: string) => (state: PluginStoreState) =>
+  state.plugins.filter(plugin => plugin.instance.platform === platform);
+
+export const selectPluginsWithSearch = (state: PluginStoreState) =>
+  state.plugins.filter(plugin => 
+    plugin.enabled && 
+    plugin.instance.search && 
+    typeof plugin.instance.search === 'function'
+  );
+
+export const selectPluginsWithMediaSource = (state: PluginStoreState) =>
+  state.plugins.filter(plugin => 
+    plugin.enabled && 
+    plugin.instance.getMediaSource && 
+    typeof plugin.instance.getMediaSource === 'function'
+  );
+
+export const selectPluginsWithLyrics = (state: PluginStoreState) =>
+  state.plugins.filter(plugin => 
+    plugin.enabled && 
+    plugin.instance.getLyric && 
+    typeof plugin.instance.getLyric === 'function'
+  );
+
+export const selectPluginsWithTopLists = (state: PluginStoreState) =>
+  state.plugins.filter(plugin => 
+    plugin.enabled && 
+    plugin.instance.getTopLists && 
+    typeof plugin.instance.getTopLists === 'function'
+  );
+
+export const selectPluginsWithRecommendSheets = (state: PluginStoreState) =>
+  state.plugins.filter(plugin => 
+    plugin.enabled && 
+    plugin.instance.getRecommendSheetsByTag && 
+    typeof plugin.instance.getRecommendSheetsByTag === 'function'
+  );
+
+// 插件统计信息
+export const usePluginStats = () => {
+  const plugins = usePluginStore(state => state.plugins);
+  
   return {
-    plugins: store.plugins,
-    enabledPlugins: store.enabledPlugins,
-    isLoading: store.isLoading,
-    error: store.error
+    total: plugins.length,
+    enabled: plugins.filter(p => p.enabled).length,
+    disabled: plugins.filter(p => !p.enabled).length,
+    withErrors: plugins.filter(p => p.error).length,
+    withSearch: plugins.filter(p => p.instance.search).length,
+    withMediaSource: plugins.filter(p => p.instance.getMediaSource).length,
+    withLyrics: plugins.filter(p => p.instance.getLyric).length,
+    withTopLists: plugins.filter(p => p.instance.getTopLists).length,
+    withRecommendSheets: plugins.filter(p => p.instance.getRecommendSheetsByTag).length
   };
 };
 
-export const usePluginActions = () => {
-  const store = usePluginStore();
-  return {
-    initializePlugins: store.initializePlugins,
-    registerPlugin: store.registerPlugin,
-    unregisterPlugin: store.unregisterPlugin,
-    enablePlugin: store.enablePlugin,
-    disablePlugin: store.disablePlugin,
-    setPluginConfig: store.setPluginConfig,
-    testPluginConnection: store.testPluginConnection,
-    importNanguaPlugin: store.importNanguaPlugin
-  };
-};
-
-export const usePluginMusic = () => {
-  const store = usePluginStore();
-  return {
-    searchAll: store.searchAll,
-    getPlayUrl: store.getPlayUrl,
-    getLyric: store.getLyric
-  };
+// 初始化插件store
+export const initializePluginStore = async () => {
+  try {
+    await usePluginStore.getState().loadPlugins();
+    console.log('Plugin store initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize plugin store:', error);
+  }
 };
